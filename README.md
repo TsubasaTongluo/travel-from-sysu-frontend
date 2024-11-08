@@ -1,4 +1,4 @@
-# travel-from-sysu-frontend
+# 中煮出去玩前端
 
 ## Project setup
 ```
