@@ -1,0 +1,538 @@
+<template>
+  <div class="container" id="container">
+    <div class="top">
+      <header class="mask-paper">
+        <a style="display: flex">
+          <img src="../../assets/logo.png" style="width: 80px; margin-left: 20px" />
+        </a>
+        <div class="tool-box"></div>
+        <div class="input-box" id="sujContainer">
+          <input
+            type="text"
+            v-model="keyword"
+            class="search-input"
+            placeholder="搜索"
+          />
+          <div class="input-button">
+            <div class="search-icon">
+              <a href="#">
+                <Search style="width: 1.2em; height: 1.2em; margin-right: 20px; margin-top: 5px" />
+              </a>
+            </div>
+          </div>
+        </div>
+        <div class="right"></div>
+      </header>
+    </div>
+    <div class="main">
+      <div class="side-bar">
+        <ul class="channel-list">
+          <li :class="{ 'active-channel': isActiveRoute('/dashboard') }" @click="navigateTo('/dashboard')">
+            <a class="link-wrapper">
+              <House style="width: 1em; height: 1em; margin-right: 8px" /><span class="channel">发现</span>
+            </a>
+          </li>
+          <li :class="{ 'active-channel': isActiveRoute('/followTrend') }" @click="navigateTo('/followTrend')">
+            <Star style="width: 1em; height: 1em; margin-right: 8px" /><span class="channel"> 动态</span>
+          </li>
+          <li :class="{ 'active-channel': isActiveRoute('/notice') }" @click="navigateTo('/notice')">
+            <Bell style="width: 1em; height: 1em; margin-right: 8px" />
+            <span class="channel"> 消息</span>
+          </li>
+          <li :class="{ 'active-channel': isActiveRoute('/push') }" @click="navigateTo('/push')">
+            <CirclePlus style="width: 1em; height: 1em; margin-right: 8px" /><span class="channel"> 发布</span>
+          </li>
+          <li class="login-button" @click="login">
+            <el-button type="danger" round>登录</el-button>
+          </li>
+        </ul>
+        <div class="information-container" id="informationContainer">
+          <div class="information-pad" v-show="padShow">
+            <div class="container">
+              <div>
+                <div>
+                  <div class="group-wrapper">
+                    <div class="menu-item hover-effect">
+                      <span>关于小红书</span>
+                      <div class="icon">
+                        <ArrowRight style="width: 1em; height: 1em; margin-right: 8px" />
+                      </div>
+                    </div>
+                    <div class="menu-item hover-effect">
+                      <span>隐私，协议</span>
+                      <div class="icon">
+                        <ArrowRight style="width: 1em; height: 1em; margin-right: 8px" />
+                      </div>
+                    </div>
+                    <div class="menu-item hover-effect">
+                      <span>帮助与客服</span>
+                    </div>
+                  </div>
+                  <div class="divider"></div>
+                </div>
+                <div>
+                  <div class="group-wrapper">
+                    <div class="group-header">访问方式</div>
+                    <div class="menu-item hover-effect">
+                      <span>键盘快捷键</span>
+                      <div class="icon">
+                        <Search style="width: 1em; height: 1em; margin-right: 8px" />
+                      </div>
+                    </div>
+                    <div class="menu-item hover-effect">
+                      <span>添加小红书到桌面</span>
+                      <div class="icon">
+                        <ArrowRight style="width: 1em; height: 1em; margin-right: 8px" />
+                      </div>
+                    </div>
+                    <div class="menu-item hover-effect">
+                      <span>小窗模式</span>
+                    </div>
+                  </div>
+                  <div class="divider"></div>
+                </div>
+                <div>
+                  <div class="group-wrapper">
+                    <div class="group-header">设置</div>
+                    <div class="menu-item hover-effect">
+                      <span>深色模式</span>
+                      <div class="multistage-toggle component">
+                        <button class="toggle-item active">
+                          <div class="icon-wrapper">
+                            <Sunny style="width: 1em; height: 1em" />
+                          </div>
+                        </button>
+                        <button class="toggle-item">
+                          <div class="icon-wrapper">
+                            <Moon style="width: 1em; height: 1em" />
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                    <div class="menu-item hover-effect">
+                      <a href="#"><span>退出登录</span></a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="information-wrapper" @click="loadPad">
+            <More style="width: 1em; height: 1em; margin-right: 8px" />
+            <span class="channel"> 更多</span>
+          </div>
+        </div>
+      </div>
+      <div class="main-content with-side-bar">
+        <router-view />
+      </div>
+    </div>
+    <!-- 使用v-show控制登录弹窗显示 -->
+    <Login v-show="loginShow" @close-login="close"></Login>
+  </div>
+</template>
+
+<script lang="ts" setup>
+import { Search, House, Star, Bell, More, CirclePlus } from "@element-plus/icons-vue";
+import { ref } from "vue";
+import { useRouter, useRoute } from "vue-router";
+import Login from "@/pages/user/user_login.vue";
+
+// 初始化loginShow为false，弹窗默认隐藏
+const loginShow = ref(false);
+const keyword = ref("");
+const router = useRouter();
+const route = useRoute();
+const padShow = ref(false);
+
+// 显示登录弹窗的函数
+const login = () => {
+  loginShow.value = true;
+};
+
+// 关闭登录弹窗的函数
+const close = () => {
+  loginShow.value = false;
+};
+
+// 导航到指定路径
+const navigateTo = (path: string) => {
+  router.push(path);
+};
+
+// 检查当前路由是否与目标路由匹配
+const isActiveRoute = (path: string) => {
+  return route.path === path;
+};
+
+const loadPad = () => {
+  padShow.value = !padShow.value;
+};
+
+</script>
+
+<style lang="less" scoped>
+a {
+  text-decoration: none;
+  color: rgba(51, 51, 51, 0.8);
+}
+
+.container {
+  max-width: 1728px;
+  background-color: #fff;
+  margin: 0 auto;
+
+  .top {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    width: 100vw;
+    height: 72px;
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 10;
+    align-items: center;
+    background: #ffffff;
+
+    header {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 1728px;
+      height: 72px;
+      padding: 0 16px 0 24px;
+      z-index: 10;
+
+      .tool-box {
+        width: 24px;
+        height: 70px;
+        position: absolute;
+        left: 0;
+        top: 0;
+      }
+
+      .input-box {
+        height: 40px;
+        position: fixed;
+        left: 50%;  // 设置input框居50%的位置
+        transform: translate(-50%);
+        max-width: 450px;
+
+        @media screen and (max-width: 695px) {
+          display: none;
+        }
+
+        @media screen and (min-width: 960px) and (max-width: 1191px) {
+          width: calc(-36px + 50vw);
+        }
+
+        @media screen and (min-width: 1192px) and (max-width: 1423px) {
+          width: calc(-33.6px + 40vw);
+        }
+
+        @media screen and (min-width: 1424px) and (max-width: 1727px) {
+          width: calc(-42.66667px + 33.33333vw);
+        }
+
+        @media screen and (min-width: 1728px) {
+          width: 533.33333px;
+        }
+
+        .search-input {
+          padding: 0 0 0 16px;  // 把输入框的右边空白位置去掉了
+          width: 100%;
+          height: 100%;
+          font-size: 16px;
+          line-height: 120%;
+          color: #333;
+          caret-color: #000;
+          background: rgba(0, 0, 0, 0.03);
+          border-radius: 999px;
+          border: none; // 去除输入框的边框
+          outline: none;  // 去除点击时输入框的边框
+          box-shadow: none;   // 去除输入框的阴影，看起来更简约一点
+
+        }
+
+        .input-button {
+          position: absolute;
+          right: -15px;
+          top: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 100%;
+          color: rgba(51, 51, 51, 0.8);
+
+          .close-icon .search-icon {
+            width: 40px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: rgba(51, 51, 51, 0.8);
+          }
+        }
+      }
+    }
+  }
+
+  .main {
+    display: flex;
+
+    .side-bar {
+      @media screen and (max-width: 695px) {
+        display: none;
+      }
+
+      @media screen and (min-width: 696px) and (max-width: 959px) {
+        display: none;
+      }
+
+      @media screen and (min-width: 960px) and (max-width: 1191px) {
+        width: calc(-18px + 25vw);
+        margin-left: 12px;
+      }
+
+      @media screen and (min-width: 1192px) and (max-width: 1423px) {
+        width: calc(-16.8px + 20vw);
+        margin-left: 12px;
+      }
+
+      @media screen and (min-width: 1424px) and (max-width: 1727px) {
+        width: calc(-21.33333px + 16.66667vw);
+        margin-left: 16px;
+      }
+
+      @media screen and (min-width: 1728px) {
+        width: 266.66667px;
+        margin-left: 16px;
+      }
+
+      height: calc(100vh - 72px);
+      overflow-y: scroll;
+      background-color: #fff;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      padding-top: 16px;
+      margin-top: 72px;
+      position: fixed;
+      overflow: visible;
+      //background-color: #ffd0d8;
+
+      .channel-list {
+        min-height: auto;
+        -webkit-user-select: none;
+        user-select: none;
+        //flex-grow: 0.85;
+        //background-color: rgba(114, 109, 109, 0.88);
+
+        li.login-button {
+          background-color: #ff2442;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          border-radius: 999px;
+          color: white;
+          padding: 0;
+          font-weight: bold;
+
+          &:hover {
+            background: #e36e8a; /* 鼠标悬停时背景色变化 */
+            opacity: 1;
+          }
+
+          .el-button {
+            background-color: transparent;
+            border: none;
+            padding: 0;
+          }
+        }
+
+        .active-channel {
+          background-color: rgba(0, 0, 0, 0.03);
+          border-radius: 999px;
+          color: #333;
+        }
+
+        li {
+          padding-left: 16px;
+          min-height: 48px;
+          display: flex;
+          align-items: center;
+          cursor: pointer;
+          margin: 0px 16px 12px -42px;  // 调整li的位置
+          color: rgba(51, 51, 51, 0.6);
+
+          .link-wrapper {
+            display: flex;
+            width: 100%;
+            height: 48px;
+            align-items: center;
+          }
+
+          .message-count {
+            margin-left: 7rem;
+            background-color: red;
+            width: 20px;
+            height: 20px;
+            font-size: 14px;
+            line-height: 20px;
+            text-align: center;
+            border-radius: 50%;
+            color: #fff;
+          }
+        }
+
+        .channel {
+          font-size: 16px;
+          font-weight: 600;
+          margin-left: 12px;
+          color: #333;
+        }
+      }
+
+      .information-container {
+        display: inline-block;
+        width: 100%;
+        color: #333;
+        font-size: 16px;
+        position: absolute;
+        bottom: 35px;   // “更多”的位置
+
+        .information-pad {
+          z-index: 16;
+          margin-bottom: 4px;
+          width: 100%;
+
+
+          .container {
+            width: 100%;
+            background: #fff;
+            box-shadow:
+              0 4px 32px 0 rgba(0, 0, 0, 0.08),
+              0 1px 4px 0 rgba(0, 0, 0, 0.04);
+            border-radius: 12px;
+
+            .divider {
+              margin: 0px 12px;
+              list-style: none;
+              height: 0;
+              border: 1px solid rgba(0, 0, 0, 0.08);
+              border-width: 1px 0 0;
+            }
+
+            .group-wrapper {
+              padding: 4px;
+
+              .group-header {
+                display: flex;
+                align-items: center;
+                padding: 0 12px;
+                font-weight: 400;
+                height: 32px;
+                color: rgba(51, 51, 51, 0.6);
+                font-size: 12px;
+              }
+
+              .menu-item {
+                height: 40px;
+                color: rgba(51, 51, 51, 0.8);
+                font-size: 16px;
+                border-radius: 8px;
+                display: flex;
+                align-items: center;
+                padding: 0 12px;
+                font-weight: 400;
+
+                .icon {
+                  color: rgba(51, 51, 51, 0.3);
+                  margin-left: auto;
+                }
+
+                .component {
+                  margin-left: auto;
+                }
+
+                .multistage-toggle {
+                  position: relative;
+                  background: rgba(0, 0, 0, 0.03);
+                  display: flex();
+                  padding: 2px;
+                  border-radius: 999px;
+                  cursor: pointer;
+
+                  .active {
+                    background: #fff;
+                    box-shadow:
+                      0 2px 8px 0 rgba(0, 0, 0, 0.04),
+                      0 1px 2px 0 rgba(0, 0, 0, 0.02);
+                    color: #333;
+                  }
+
+                  .toggle-item {
+                    border-radius: 999px;
+                    background: transparent;
+                    color: rgba(51, 51, 51, 0.6);
+
+                    .icon-wrapper {
+                      width: 24px;
+                      height: 24px;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      cursor: pointer;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        .information-wrapper {
+          -webkit-user-select: none;
+          user-select: none;
+          cursor: pointer;
+          position: relative;
+          //margin-top: 100px;
+          height: 48px;
+          width: 100%;
+          display: flex;
+          font-weight: 600;
+          align-items: center;
+          border-radius: 999px;
+        }
+      }
+    }
+
+    .main-content {
+      width: 100%;
+    }
+
+    .main-content {
+      @media screen and (min-width: 960px) and (max-width: 1191px) {
+        padding-left: calc(-6px + 25vw);
+      }
+
+      @media screen and (min-width: 1192px) and (max-width: 1423px) {
+        padding-left: calc(-4.8px + 20vw);
+      }
+
+      @media screen and (min-width: 1424px) and (max-width: 1727px) {
+        padding-left: calc(-5.33333px + 16.66667vw);
+      }
+
+      @media screen and (min-width: 1728px) {
+        padding-left: 282.66667px;
+      }
+    }
+  }
+}
+</style>
