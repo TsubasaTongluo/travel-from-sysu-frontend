@@ -1,3 +1,4 @@
+<!-- 待完善：注册、隐私政策勾选、接口 -->
 <template>
   <div class="reds-modal login-modal" role="presentation">
     <i tabindex="-1" class="reds-mask" aria-label="弹窗遮罩"></i
