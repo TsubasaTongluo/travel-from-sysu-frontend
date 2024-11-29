@@ -571,6 +571,9 @@ const closeFullscreen = () => {
     max-height: 100%; /* 限制图片最大高度 */
     object-fit: contain; /* 保持图片比例，避免拉伸 */
     border-radius: 8px; /* 圆角 */
+    &:hover{
+      cursor: zoom-in;  // cursor显示放大鼠标图标
+    }
   }
 
   .image-navigation {
@@ -612,6 +615,7 @@ const closeFullscreen = () => {
     align-items: center;
     visibility: hidden; /* 默认隐藏按钮 */
     user-select:none;   /* 不可选中文字以免点击放大图片的时候干扰 */
+    backdrop-filter:blur(1px);
   }
 
   &:hover .image-index {
@@ -620,16 +624,12 @@ const closeFullscreen = () => {
 
   &:hover .nav-button {
     visibility: visible; /* 鼠标悬停时显示按钮 */
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.3);
   }
 
   &:hover .nav-button:disabled {
-    background: rgba(0, 0, 0, 0.3);
+    background: rgba(0, 0, 0, 0.1);
     cursor: not-allowed;
-  }
-
-  &:hover{
-    cursor: zoom-in;  // cursor显示放大鼠标图标
   }
 
   .video-cover {
