@@ -1,8 +1,16 @@
 import { createApp } from "vue";
 import App from "./App.vue";
 
+// 引入pinia
+import { createPinia } from "pinia";
+
 // 创建Vue应用实例
 const app = createApp(App);
+
+// 创建pinia
+const pinia = createPinia();
+// 安装pinia
+app.use(pinia);
 
 // 导入路由配置
 import router from "./router/index";
