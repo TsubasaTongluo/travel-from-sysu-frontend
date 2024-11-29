@@ -43,17 +43,7 @@ export const routes = [
         component: () => import("@/pages/push/push_index.vue"),
         name: "push",
       },
-      {
-        path: "/userInfo",
-        component: ()=> import("@/pages/user/user_info.vue"),
-        name: "userInfo",
-      },
     ],
-  },
-  {
-    name:"editInfo",
-    path:"/editInfo",
-    component: ()=> import("@/pages/user/edit_info.vue"),
   },
 ];
 

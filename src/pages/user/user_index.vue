@@ -42,15 +42,8 @@
           <li :class="{ 'active-channel': isActiveRoute('/push') }" @click="navigateTo('/push')">
             <CirclePlus style="width: 1em; height: 1em; margin-right: 8px" /><span class="channel"> 发布</span>
           </li>
-          <!-- <li class="login-button" @click="login">
+          <li class="login-button" @click="login">
             <el-button type="danger" round>登录</el-button>
-          </li> -->
-          <li v-if="userInfo == null" class="login-button" @click="login">
-            <el-button type="danger" round>登录</el-button>
-          </li>
-          <li v-else :class="{ 'active-channel': isActiveRoute('/userInfo') }" @click="navigateTo('/userInfo')">
-            <el-avatar :src="userInfo.avatar" :size="22" />
-            <span class="channel">我</span>
           </li>
         </ul>
         <div class="information-container" id="informationContainer">
@@ -116,7 +109,7 @@
                         </button>
                       </div>
                     </div>
-                    <div class="menu-item hover-effect" @click="logout">
+                    <div class="menu-item hover-effect">
                       <a href="#"><span>退出登录</span></a>
                     </div>
                   </div>
@@ -138,6 +131,24 @@
     <!-- 使用v-show控制登录弹窗显示 -->
     <Login v-show="loginShow" @close-login="close"></Login>
   </div>
+  <div v-show="showBottomToolbar" class="bottom-toolbar">
+    <button @click="navigateTo('/dashboard')" :class="{ active: isActiveRoute('/dashboard') }">
+      <House style="width: 24px; height: 24px" />
+      <span>发现</span>
+    </button>
+    <button @click="navigateTo('/followTrend')" :class="{ active: isActiveRoute('/followTrend') }">
+      <Star style="width: 24px; height: 24px" />
+      <span>动态</span>
+    </button>
+    <button @click="navigateTo('/notice')" :class="{ active: isActiveRoute('/notice') }">
+      <Bell style="width: 24px; height: 24px" />
+      <span>消息</span>
+    </button>
+    <button @click="navigateTo('/push')" :class="{ active: isActiveRoute('/push') }">
+      <CirclePlus style="width: 24px; height: 24px" />
+      <span>发布</span>
+    </button>
+  </div>
 </template>
 
 <script lang="ts" setup>
@@ -145,7 +156,6 @@ import { Search, House, Star, Bell, More, CirclePlus } from "@element-plus/icons
 import { ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import Login from "@/pages/user/user_login.vue";
-import { useUserStore } from "@/store/user";
 
 // 初始化loginShow为false，弹窗默认隐藏
 const loginShow = ref(false);
@@ -153,10 +163,6 @@ const keyword = ref("");
 const router = useRouter();
 const route = useRoute();
 const padShow = ref(false);
-const userStore = useUserStore();
-const userInfo = ref<any>({});
-
-userInfo.value = userStore.getUserInfo();
 
 // 显示登录弹窗的函数
 const login = () => {
@@ -166,8 +172,6 @@ const login = () => {
 // 关闭登录弹窗的函数
 const close = () => {
   loginShow.value = false;
-  // 初始化userInfo
-  userInfo.value = userStore.getUserInfo();
 };
 
 // 导航到指定路径
@@ -180,16 +184,24 @@ const isActiveRoute = (path: string) => {
   return route.path === path;
 };
 
-// 退出登录
-const logout = () => {
-  userStore.loginOut();
-  userInfo.value = userStore.getUserInfo();
-  navigateTo("/dashboard");
-};
-
 const loadPad = () => {
   padShow.value = !padShow.value;
 };
+
+
+const showBottomToolbar = ref(false);
+
+// 根据窗口宽度调整工具栏显示
+const updateToolbarVisibility = () => {
+  showBottomToolbar.value = window.innerWidth <= 960;
+};
+
+// 路由切换
+
+
+// 监听窗口大小变化
+window.addEventListener("resize", updateToolbarVisibility);
+updateToolbarVisibility();
 
 </script>
 
@@ -345,12 +357,14 @@ a {
       margin-top: 72px;
       position: fixed;
       overflow: visible;
+      z-index: 3000;
       //background-color: #ffd0d8;
 
       .channel-list {
         min-height: auto;
         -webkit-user-select: none;
         user-select: none;
+        margin-top: 0;
         //flex-grow: 0.85;
         //background-color: rgba(114, 109, 109, 0.88);
 
@@ -388,7 +402,7 @@ a {
           display: flex;
           align-items: center;
           cursor: pointer;
-          margin: 0px 16px 12px -42px;  // 调整li的位置
+          margin: 0 16px 12px -42px;  // 调整li的位置
           color: rgba(51, 51, 51, 0.6);
 
           .link-wrapper {
@@ -535,9 +549,7 @@ a {
 
     .main-content {
       width: 100%;
-    }
 
-    .main-content {
       @media screen and (min-width: 960px) and (max-width: 1191px) {
         padding-left: calc(-6px + 25vw);
       }
@@ -556,4 +568,39 @@ a {
     }
   }
 }
+
+.bottom-toolbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 50px;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  background: #fff;
+  box-shadow: 0 -1px 5px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+
+  button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #777777;
+
+    &.active {
+      color: #333333;
+    }
+
+    span {
+      font-size: 12px;
+      margin-top: 4px;
+    }
+  }
+}
+
 </style>
