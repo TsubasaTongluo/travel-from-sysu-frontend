@@ -1,6 +1,9 @@
 import { createApp } from "vue";
 import App from "./App.vue";
+import axios from 'axios';
 
+// 设置后端地址为 3000 端口
+axios.defaults.baseURL = 'http://127.0.0.1:4523/m1/5038601-4699037-default';
 // 创建Vue应用实例
 const app = createApp(App);
 

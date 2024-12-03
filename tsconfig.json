@@ -1,40 +1,28 @@
 {
   "compilerOptions": {
-    "target": "esnext",
-    "module": "esnext",
-    "strict": true,
-    "jsx": "preserve",
-    "moduleResolution": "node",
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "forceConsistentCasingInFileNames": true,
-    "useDefineForClassFields": true,
-    "sourceMap": true,
-    "baseUrl": ".",
-    "types": [
-      "webpack-env"
-    ],
+    "target": "esnext", // 现代 JavaScript 的目标版本
+    "module": "esnext", // 使用 ES 模块
+    "strict": true, // 开启严格模式
+    "jsx": "preserve", // 保留 JSX，通常用于 Vue 的 JSX 语法支持
+    "moduleResolution": "node", // 使用 Node.js 的模块解析方式
+    "skipLibCheck": true, // 跳过库文件的类型检查
+    "esModuleInterop": true, // 支持 ES 模块与 CommonJS 模块的互操作性
+    "allowSyntheticDefaultImports": true, // 允许合成的默认导入
+    "forceConsistentCasingInFileNames": true, // 强制文件名一致的大小写
+    "useDefineForClassFields": true, // 支持类字段语法
+    "sourceMap": true, // 生成 Source Map 以便调试
+    "baseUrl": ".", // 设置项目的根路径
+    "types": ["vite/client"], // 添加 Vite 的类型支持
     "paths": {
-      "@/*": [
-        "src/*"
-      ]
+      "@/*": ["src/*"] // 配置路径别名，@ 表示 src 目录
     },
-    "lib": [
-      "esnext",
-      "dom",
-      "dom.iterable",
-      "scripthost"
-    ]
+    "lib": ["esnext", "dom", "dom.iterable", "scripthost"] // 指定编译环境
   },
   "include": [
-    "src/**/*.ts",
-    "src/**/*.tsx",
-    "src/**/*.vue",
-    "tests/**/*.ts",
-    "tests/**/*.tsx"
+    "src/**/*", // 包含 src 目录下的所有文件
+    "tests/**/*" // 包含 tests 目录下的所有文件
   ],
   "exclude": [
-    "node_modules"
+    "node_modules" // 排除 node_modules 目录
   ]
 }
