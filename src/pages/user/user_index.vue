@@ -42,8 +42,18 @@
           <li :class="{ 'active-channel': isActiveRoute('/push') }" @click="navigateTo('/push')">
             <CirclePlus style="width: 1em; height: 1em; margin-right: 8px" /><span class="channel"> 发布</span>
           </li>
-          <li class="login-button" @click="login">
+          <!-- <li class="login-button" @click="login">
             <el-button type="danger" round>登录</el-button>
+          </li> -->
+          <!-- <li class="login-button" @click="login">
+            <el-button type="danger" round>登录</el-button>
+          </li> -->
+          <li v-if="userInfo == null" class="login-button" @click="login">
+            <el-button type="danger" round>登录</el-button>
+          </li>
+          <li v-else :class="{ 'active-channel': isActiveRoute('/userInfo') }" @click="navigateTo('/userInfo')">
+            <el-avatar :src="userInfo.avatar" :size="22" />
+            <span class="channel">我</span>
           </li>
         </ul>
         <div class="information-container" id="informationContainer">
@@ -109,7 +119,7 @@
                         </button>
                       </div>
                     </div>
-                    <div class="menu-item hover-effect">
+                    <div class="menu-item hover-effect" @click="logout">
                       <a href="#"><span>退出登录</span></a>
                     </div>
                   </div>
@@ -156,6 +166,7 @@ import { Search, House, Star, Bell, More, CirclePlus } from "@element-plus/icons
 import { ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import Login from "@/pages/user/user_login.vue";
+import { useUserStore } from "@/store/user";
 
 // 初始化loginShow为false，弹窗默认隐藏
 const loginShow = ref(false);
@@ -163,6 +174,9 @@ const keyword = ref("");
 const router = useRouter();
 const route = useRoute();
 const padShow = ref(false);
+const userStore = useUserStore();
+const userInfo = ref<any>({});
+userInfo.value = userStore.getUserInfo();
 
 // 显示登录弹窗的函数
 const login = () => {
@@ -172,12 +186,22 @@ const login = () => {
 // 关闭登录弹窗的函数
 const close = () => {
   loginShow.value = false;
+  // 初始化userInfo
+  userInfo.value = userStore.getUserInfo();
 };
 
 // 导航到指定路径
 const navigateTo = (path: string) => {
   router.push(path);
 };
+
+// 退出登录
+const logout = () => {
+  userStore.loginOut();
+  userInfo.value = userStore.getUserInfo();
+  navigateTo("/dashboard");
+};
+
 
 // 检查当前路由是否与目标路由匹配
 const isActiveRoute = (path: string) => {

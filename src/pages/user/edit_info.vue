@@ -193,6 +193,7 @@ const fetchUserInfo = () => {
     } else {
         console.error('用户信息未找到，请重新登录。');
     }
+    
 };
 
 // 生命周期初始化
@@ -201,32 +202,32 @@ fetchUserInfo();
 const updateInfo = async (formName) => {
     // todo: updateInfo
 
-    // isNavigating.value = true;
-    // try {
-    //     const res = await axios.post('api/auth/changeUserInfo', {
-    //         uid: formData.uid,
-    //         name: formData.name,
-    //         phone: formData.phone,
-    //         email: formData.email,
-    //         description: formData.description,
-    //         avatar: formData.avatar
-    //     });
+    isNavigating.value = true;
+    try {
+        const res = await axios.post('api/auth/changeUserInfo', {
+            // uid: formData.uid,
+            username: formData.name,
+            phone: formData.phone,
+            email: formData.email,
+            description: formData.description,
+            avatar: formData.avatar
+        });
 
-    //     if (res.data.code === 200) {
-    //         // todo: 存储新的用户信息
-    //         // userstore.setUserInfo();
-    //         console.log(res.data.user);
+        if (res.data.code === 200) {
+            // todo: 存储新的用户信息
+            // userstore.setUserInfo();
+            console.log(res.data.user);
 
-    //         alert('信息修改成功，2秒后跳转首页');
-    //         setTimeout(() => router.push('/dashboard'), 2000);
-    //     } else {
-    //         alert('修改失败');
-    //     }
-    // } catch (error) {
-    //     console.error('更新信息出错：', error);
-    // } finally {
-    //     isNavigating.value = false;
-    // }
+            alert('信息修改成功，2秒后跳转首页');
+            setTimeout(() => router.push('/dashboard'), 2000);
+        } else {
+            alert('修改失败');
+        }
+    } catch (error) {
+        console.error('更新信息出错：', error);
+    } finally {
+        isNavigating.value = false;
+    }
 };
 
 const updatePassword = async (formName) => {
