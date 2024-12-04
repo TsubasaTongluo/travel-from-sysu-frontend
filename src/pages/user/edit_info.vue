@@ -57,8 +57,8 @@
                                 :http-request="customRequest"
                                 accept="image/*">
                                 
-                                <img v-if="formData.avatar" :src="formData.avatar" class="avatar" />
-                                <el-icon v-else class="avatar-uploader-icon" :size="24">
+                                <img :src="formData.avatar || defaultAvatar" class="avatar" />
+                                <el-icon class="avatar-uploader-icon" :size="24">
                                     <Plus />
                                 </el-icon>
 
@@ -114,12 +114,13 @@ import { ref, reactive, computed, watchEffect } from 'vue';
 import { useUserStore } from '@/store/user';
 import axios from 'axios';
 import { useRouter } from 'vue-router';
-import { ElIcon } from 'element-plus';
+import { ElIcon, ElMessage } from 'element-plus';
 import 'element-plus/dist/index.css';
 import { ElForm, ElFormItem} from 'element-plus';
 import { ElUpload } from 'element-plus';
 import { Plus,Back } from "@element-plus/icons-vue";
 import { ElInput } from 'element-plus';
+import defaultAvatar from '@/assets/logo.png';
 
 const userstore = useUserStore();
 const router = useRouter();
@@ -137,7 +138,7 @@ const isNavigating = ref(false);
 const backgroundColor= ref('#d5eac2');
 
 const formData = reactive({
-    account: '',
+    uid: '',
     name: '',
     phone: '',
     email: '',
@@ -176,26 +177,18 @@ const rules = reactive({
 });
 
 
-// // 监听 store 数据变化
-// watchEffect(() => {
-//     wordColor.value = store.state.textColor;
-//     buttonColor.value = store.state.buttonColor;
-//     mainBackgroundColor.value = store.state.backgroundColor;
-//     modeValue.value = store.state.modeValue;
-// });
-
 // 初始化表单数据
 const fetchUserInfo = () => {
     const user = userstore.getUserInfo();
     console.log(user);
     if (user) {
         Object.assign(formData, {
-            account: '',
+            uid: user.uid,
             name: user.username,
             phone: user.phone,
             email: user.email,
             description: user.description,
-            avatar: '',
+            avatar: user.avatar,
         });
     } else {
         console.error('用户信息未找到，请重新登录。');
@@ -206,57 +199,60 @@ const fetchUserInfo = () => {
 fetchUserInfo();
 
 const updateInfo = async (formName) => {
-    isNavigating.value = true;
-    try {
-        const apiBaseUrl = process.env.VUE_APP_BACKEND_BASE_URL;
-        const res = await axios.post(`${apiBaseUrl}/updateInfo`, {
-            account: formData.account,
-            name: formData.name,
-            phone: formData.phone,
-            email: formData.email,
-            description: formData.description,
-            avatar: formData.avatar
-        });
+    // todo: updateInfo
 
-        if (res.data.code === 200) {
-            // todo: 存储新的用户信息
-            // userstore.setUserInfo();
-            console.log(res.data.user);
+    // isNavigating.value = true;
+    // try {
+    //     const res = await axios.post('api/auth/changeUserInfo', {
+    //         uid: formData.uid,
+    //         name: formData.name,
+    //         phone: formData.phone,
+    //         email: formData.email,
+    //         description: formData.description,
+    //         avatar: formData.avatar
+    //     });
 
-            alert('信息修改成功，2秒后跳转首页');
-            setTimeout(() => router.push('/dashboard'), 2000);
-        } else {
-            alert('修改失败');
-        }
-    } catch (error) {
-        console.error('更新信息出错：', error);
-    } finally {
-        isNavigating.value = false;
-    }
+    //     if (res.data.code === 200) {
+    //         // todo: 存储新的用户信息
+    //         // userstore.setUserInfo();
+    //         console.log(res.data.user);
+
+    //         alert('信息修改成功，2秒后跳转首页');
+    //         setTimeout(() => router.push('/dashboard'), 2000);
+    //     } else {
+    //         alert('修改失败');
+    //     }
+    // } catch (error) {
+    //     console.error('更新信息出错：', error);
+    // } finally {
+    //     isNavigating.value = false;
+    // }
 };
 
 const updatePassword = async (formName) => {
-    isNavigating.value = true;
-    try {
-        const apiBaseUrl = process.env.VUE_APP_BACKEND_BASE_URL;
-        const res = await axios.post(`${apiBaseUrl}/updatePassword`, {
-            account: formData.account,
-            old_password: formData.currentPassword,
-            new_password: formData.newPassword,
-            repeat_password: formData.newPassword
-        });
+    // todo: update password
 
-        if (res.data.code === 200) {
-            alert('密码修改成功，2秒后跳转首页');
-            setTimeout(() => router.push('/dashboard'), 2000);
-        } else {
-            alert(res.data.status);
-        }
-    } catch (error) {
-        console.error('更新密码出错：', error);
-    } finally {
-        isNavigating.value = false;
-    }
+    // isNavigating.value = true;
+    // try {
+    //     const apiBaseUrl = process.env.VUE_APP_BACKEND_BASE_URL;
+    //     const res = await axios.post(`${apiBaseUrl}/updatePassword`, {
+    //         account: formData.account,
+    //         old_password: formData.currentPassword,
+    //         new_password: formData.newPassword,
+    //         repeat_password: formData.newPassword
+    //     });
+
+    //     if (res.data.code === 200) {
+    //         alert('密码修改成功，2秒后跳转首页');
+    //         setTimeout(() => router.push('/dashboard'), 2000);
+    //     } else {
+    //         alert(res.data.status);
+    //     }
+    // } catch (error) {
+    //     console.error('更新密码出错：', error);
+    // } finally {
+    //     isNavigating.value = false;
+    // }
 };
 
 const editInfo = () => (isEditingInfo.value = true);
@@ -267,51 +263,59 @@ const backHome = () => {
     router.push('/dashboard');
 };
 
+
+// 处理头像上传成功的回调
 const handleAvatarSuccess = (res, file) => {
-
-    // todo: 处理头像信息
-    console.log("handle avatar info");
-
-    // if (res.code === 200) {
-    //     formData.avatar = URL.createObjectURL(file.raw);
-    //     store.commit('setUser', { ...store.state.user, avatar: formData.avatar });
-    //     alert('头像上传成功');
-    // } else {
-    //     alert('头像上传失败');
-    // }
+  console.log('头像上传成功', res);
+  if (res.status == 200) {
+    // 假设后端返回的是新的头像 URL
+    formData.avatar = res.data.avatar;  // 设置新的头像 URL
+    // todo: 存储新头像到storage
+    userstore.setAvatar(res.data.avatar);
+    // store.commit('setUser', { ...store.state.user, avatar: formData.value.avatar });
+    ElMessage.success('头像上传成功');
+  } else {
+    ElMessage.error('头像上传失败');
+  }
 };
 
+// 在上传头像前进行检查
 const beforeAvatarUpload = (file) => {
-
-    // todo: 类型检查
-    console.log("before avatar upload");
-
-    // const isImage = file.type.startsWith('image/');
-    // if (!isImage) {
-    //     alert('上传文件必须是图片类型');
-    //     return false;
-    // }
-    // return true;
+  const isImage = file.type.startsWith('image/');
+  if (!isImage) {
+    ElMessage.error('上传文件必须是图片类型');
+    return false;  // 阻止上传
+  }
+  const isWithinSizeLimit = file.size / 1024 / 1024 < 2;  // 限制上传图片大小为2MB
+  if (!isWithinSizeLimit) {
+    ElMessage.error('上传图片大小不能超过 2MB');
+    return false;
+  }
+  return true;
 };
+
 
 const customRequest = ({ file, onSuccess, onError }) => {
-    const uploadData = new FormData();
-    uploadData.append('account', formData.account);
-    uploadData.append('avatar', file);
+  const uploadData = new FormData();
+  uploadData.append('uid', formData.uid);  // 假设 formData 中有用户的账户信息
+  uploadData.append('file', file);
 
-    axios.post('http://8.134.209.144:28888/api/uploadAvatar', uploadData, {
-        headers: {
-            'Content-Type': 'multipart/form-data'
-        }
+  console.log(file);
+  // 请求接口上传图片
+  axios.post('api/auth/uploadAvatar', uploadData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+    .then((result) => {
+      console.log(result);
+      if (result.status == 200) {
+        onSuccess(result);  // 上传成功，触发 onSuccess 回调
+      } else {
+        onError(new Error('上传失败'));  // 上传失败，触发 onError 回调
+      }
     })
-        .then((result) => {
-            if (result.data.code === 200) {
-                onSuccess(result.data);
-            } else {
-                onError(new Error('上传失败'));
-            }
-        })
-        .catch(onError);
+    .catch(onError);  // 请求出错时，触发 onError
 };
 
 </script>
@@ -559,34 +563,24 @@ input:-webkit-autofill {
     color:  var(--wordColor); /* 文字颜色 */
 }
 .avatar-uploader {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 200px;
-    height: 200px;
-    border: 1px dashed #f4c0c0;
-    border-radius: 50%;
-    cursor: pointer;
-    overflow: hidden;
-}
-.avatar-uploader-icon {
-    width: 15vw; /* 根据需要调整大小 */
-    height: 15vw; /* 确保宽高相等 */
-    max-width: 200px; /* 设置最大宽度，防止过大 */
-    max-height: 200px;
-    font-size: 28px;
-    color: #e85f5f;
+    position: relative;
+    display: inline-block;
 }
 
 .avatar {
-    width: 15vw; /* 根据需要调整大小 */
-    height: 15vw; /* 确保宽高相等 */
-    max-width: 200px; /* 设置最大宽度，防止过大 */
-    max-height: 200px;
-    border-radius: 50%; /* 使其为正圆形 */
-    object-fit: contain; /* 确保图片按比例填充容器 */
-    overflow:auto;
-    background-color: transparent;
+  width: 200px; /* 根据需要调整头像大小 */
+  height: 200px;
+  border-radius: 50%; /* 圆形头像 */
+}
+
+.avatar-uploader-icon {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  background-color: rgba(0, 0, 0, 0.5); /* 半透明背景 */
+  border-radius: 50%; /* 圆形背景 */
+  padding: 5px; /* 内间距调整图标大小 */
+  color: white; /* 图标颜色 */
 }
 
 .overlay {
@@ -600,51 +594,3 @@ input:-webkit-autofill {
     pointer-events: all; /* 确保遮罩层捕获所有点击事件 */
 }
 </style>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<!-- <template>
-    <div class="notice-container">
-      <h1>Edit Info</h1>
-      <p>这里是修改个人信息页面</p>
-  
-    </div>
-  </template>
-  
-  <script lang="ts" setup>
-  
-  </script>
-  
-  <style lang = "less" scoped>
-    .notice-container {
-      flex: 1;
-      padding: 0 24px;
-      padding-top: 72px;
-      height: 100vh;
-    }
-  </style> -->
-
-
-  

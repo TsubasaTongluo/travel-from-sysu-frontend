@@ -17,6 +17,11 @@ export const useUserStore = defineStore('user',()=>{
         userInfo.value = data;  // 将登录后的用户信息存储到 Pinia 中
     };
 
+    // 设置用户头像
+    const setAvatar = (ava:string)=>{
+        if(userInfo.value!=null) userInfo.value.avatar=ava;
+    };
+
     // 检查用户是否已登录
     const isLogin = (): boolean => {
         return userInfo.value !== null;
@@ -27,6 +32,6 @@ export const useUserStore = defineStore('user',()=>{
         userInfo.value = null;  // 清空 Pinia 中的用户信息
     };
 
-    return { getUserInfo, setUserInfo, loginOut, isLogin };
+    return { getUserInfo, setUserInfo, loginOut, isLogin, setAvatar };
 
 });

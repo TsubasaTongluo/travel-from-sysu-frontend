@@ -5,7 +5,7 @@
         <div class="avatar">
           <div class="avatar-wrapper">
             <!-- todo: 给userInfo 加入头像 -->
-            <img :src="userInfo.avatar" class="user-image" style="border: 1px solid rgba(0, 0, 0, 0.08)" />
+            <img :src="userInfo.avatar || defaultAvatar" class="user-image" style="border: 1px solid rgba(0, 0, 0, 0.08)" />
             <button class="edit-info-btn" @click="editInfo">修改个人信息</button>
           </div>
         </div>
@@ -18,8 +18,8 @@
                 </div>
                 <!-- todo: any其他信息设置？ -->
                 <div class="user-content">
-                  <span class="user-redId">小红书号：12345</span>
-                  <span class="user-IP"> IP属地：广东</span>
+                  <span class="user-redId">小红书号：{{ userInfo.uid.toString().padStart(6, '0') }}</span>
+                  <!-- <span class="user-IP"> IP属地：广东</span> -->
                 </div>
               </div>
             </div>
@@ -27,7 +27,7 @@
               <span v-if="userInfo.description == ''">这个人什么都没有写～</span>
               <span v-else>{{ userInfo.description }}</span>
             </div>
-            <div class="user-tags">
+            <!-- <div class="user-tags">
               <div class="tag-item">
                 <div>射手座</div>
               </div>
@@ -37,7 +37,7 @@
               <div class="tag-item">
                 <div>程序员</div>
               </div>
-            </div>
+            </div> -->
             <div class="data-info">
               <div class="user-interactions">
                 <!-- 需要获取用户的作品、关注、粉丝数 -->
@@ -112,9 +112,10 @@
 import { ref } from "vue";
 import { useUserStore } from "@/store/user";
 import { useRoute, useRouter } from "vue-router"; 
+import defaultAvatar from '@/assets/logo.png';
 const route = useRoute();
 const userStore = useUserStore();
-const currentUid = ref("1");
+// const currentUid = ref("1");
 const userInfo = ref<any>({});
 const type = ref(1);
 const router = useRouter();
@@ -146,6 +147,7 @@ const follow = (fid: string, type: number) => {
 const initData = () => {
   // todo: 
   userInfo.value = userStore.getUserInfo();
+  console.log(userInfo);
   console.log("init");
 };
 

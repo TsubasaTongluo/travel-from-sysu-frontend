@@ -65,6 +65,9 @@
                 <input type="password" placeholder="确认密码" autocomplete="false" v-model="userRegister.confirmPassword" required/>
               </label>
               
+              <!-- <div v-if="passwordsMismatch" class="err-msg">密码和确认密码不一致，请重新输入</div> -->
+               <!-- 提交时显示错误消息 -->
+              <div v-if="showError" class="err-msg">密码和确认密码不一致，请重新输入</div>
 
               <div class="err-msg"></div>
               <button class="submit" type="submit">注册</button>
@@ -83,7 +86,7 @@
 
 
 <script lang="ts" setup>
-import { defineEmits } from "vue";
+import { computed, defineEmits } from "vue";
 import { ref } from "vue";
 import type { UserLogin } from "@/type/user";
 import { Close } from "@element-plus/icons-vue";
@@ -119,6 +122,14 @@ const userRegister = ref({
   email:"",
 });
 
+// 计算属性检查密码是否一致
+const passwordsMismatch = computed(() => {
+  return userRegister.value.password !== userRegister.value.confirmPassword;
+});
+
+// 控制错误消息是否显示
+const showError = ref(false);
+
 const switchToLogin=() => {
   isLogin.value = true;
   userLogin.value = {username:"",password:"",};
@@ -152,14 +163,23 @@ async function register(data:any){
 
 // 注册方法
 const registerMethod = () => {
-  if (userRegister.value.password !== userRegister.value.confirmPassword) {
-    ElMessage.error("密码和确认密码不一致！");
+  // if (userRegister.value.password !== userRegister.value.confirmPassword) {
+  //   ElMessage.error("密码和确认密码不一致！");
+  //   return;
+  // }
+  if (passwordsMismatch.value) {
+    // 如果密码不一致，可以阻止提交或给出提示
+    showError.value = true;  // 如果密码不一致，显示错误提示
+    // 3秒后自动隐藏错误消息
+    setTimeout(() => {
+      showError.value = false;
+    }, 1500);
     return;
   }
 
   register(userRegister.value)
   .then(response => {
-      if (response.data.code === 200) {
+      if (response.data.code == 200) {
         ElMessage.success("注册成功，跳转至登录页面！");
         switchToLogin();
       } else {

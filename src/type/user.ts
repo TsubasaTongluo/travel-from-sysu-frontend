@@ -4,9 +4,10 @@ export interface UserLogin {
 }
 
 export interface User{
+  uid:number;
   username: string;
   password: string;
-  // avatar: string;
+  avatar: string;
   description: string;
   email: string;
   phone: string;
