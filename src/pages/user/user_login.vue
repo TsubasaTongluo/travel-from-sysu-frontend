@@ -64,9 +64,9 @@
                 <input type="password" placeholder="确认密码" autocomplete="false" v-model="userRegister.confirmPassword" required/>
               </label>
               
-              <!-- <div v-if="passwordsMismatch" class="err-msg">密码和确认密码不一致，请重新输入</div> -->
+              <div v-if="passwordsMismatch" class="err-msg">密码和确认密码不一致，请重新输入</div>
                <!-- 提交时显示错误消息 -->
-              <div v-if="showError" class="err-msg">密码和确认密码不一致，请重新输入</div>
+              <!-- <div v-if="showError" class="err-msg">密码和确认密码不一致，请重新输入</div> -->
 
               <div class="err-msg"></div>
               <button class="submit" type="submit">注册</button>
@@ -162,19 +162,19 @@ async function register(data:any){
 
 // 注册方法
 const registerMethod = () => {
-  // if (userRegister.value.password !== userRegister.value.confirmPassword) {
-  //   ElMessage.error("密码和确认密码不一致！");
-  //   return;
-  // }
-  if (passwordsMismatch.value) {
-    // 如果密码不一致，可以阻止提交或给出提示
-    showError.value = true;  // 如果密码不一致，显示错误提示
-    // 3秒后自动隐藏错误消息
-    setTimeout(() => {
-      showError.value = false;
-    }, 1500);
+  if (userRegister.value.password !== userRegister.value.confirmPassword) {
+    ElMessage.error("密码和确认密码不一致！");
     return;
   }
+  // if (passwordsMismatch.value) {
+  //   // 如果密码不一致，可以阻止提交或给出提示
+  //   showError.value = true;  // 如果密码不一致，显示错误提示
+  //   // 3秒后自动隐藏错误消息
+  //   setTimeout(() => {
+  //     showError.value = false;
+  //   }, 1500);
+  //   return;
+  // }
 
   register(userRegister.value)
   .then(response => {
@@ -187,7 +187,16 @@ const registerMethod = () => {
     })
     .catch(error => {
       console.log('注册失败:', error);
-      ElMessage.error("注册失败，请稍后重试！");
+      if(error.response.data.code === 500){
+        ElMessage.error("用户名已存在！");
+      }else if (error.response) {
+          // 如果服务器返回了错误响应，使用错误信息
+          // alert(error.response.data.error || "登录失败");
+          ElMessage.error(error.response.data.error || "登录失败");
+      } else {
+          // 如果没有响应，说明网络错误等其他问题
+          ElMessage.error("注册失败，请检查网络或稍后再试");
+      }
     });
 
 };
@@ -227,7 +236,15 @@ const loginMethod = () => {
     })
     .catch(error => {
       console.log('Error durring login:',error);
-      ElMessage.error("登录失败");
+      // 检查 error.response 是否存在
+      if (error.response) {
+          // 如果服务器返回了错误响应，使用错误信息
+          // alert(error.response.data.error || "登录失败");
+          ElMessage.error(error.response.data.error || "登录失败");
+      } else {
+          // 如果没有响应，说明网络错误等其他问题
+          ElMessage.error("登录失败，请检查网络或稍后再试");
+      }
     });
 
 };
