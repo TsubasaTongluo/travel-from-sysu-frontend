@@ -11,10 +11,10 @@
 </script>
 
 <style lang = "less" scoped>
-  .notice-container {
-    flex: 1;
-    padding: 0 24px;
-    padding-top: 72px;
-    height: 100vh;
-  }
+.notice-container {
+  flex: 1;
+  padding: 0 24px;
+  padding-top: 72px;
+  height: 100vh;
+}
 </style>

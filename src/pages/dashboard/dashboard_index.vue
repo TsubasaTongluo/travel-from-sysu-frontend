@@ -5,10 +5,10 @@
         <div class="content-container">
           <div :class="categoryClass == '0' ? 'channel active' : 'channel'" @click="getNoteList">推荐</div>
           <div
-            :class="categoryClass == item.id ? 'channel active' : 'channel'"
-            v-for="item in categoryList"
-            :key="item.id"
-            @click="getNoteListByCategory(item.id)"
+              :class="categoryClass == item.id ? 'channel active' : 'channel'"
+              v-for="item in categoryList"
+              :key="item.id"
+              @click="getNoteListByCategory(item.id)"
           >
             {{ item.title }}
           </div>
@@ -18,8 +18,8 @@
 
     <!-- 加载 -->
     <div
-      class="loading-container"
-      v-if="isLoading"
+        class="loading-container"
+        v-if="isLoading"
     >
       <div class="spinner"></div>
     </div>
@@ -27,25 +27,25 @@
     <div class="feeds-container" :class="{ 'loading': isLoading }">
       <div class="grid-container">
         <div
-          class="card"
-          v-for="item in noteList"
-          :key="item.id"
-          style="max-width: 240px"
+            class="card"
+            v-for="item in noteList"
+            :key="item.id"
+            style="max-width: 240px"
         >
           <div class="image-wrapper">
             <img
-              :src="item.noteCover[0]"
-              :style="{
+                :src="item.noteCover[0]"
+                :style="{
                 maxWidth: '210px',
                 borderRadius: '8px',
               }"
-              fit="contain"
-              @click="toMain(item)"
+                fit="contain"
+                @click="toMain(item)"
             />
 
-            <div v-if="item.noteType === 'video'" class="video-icon">
-              <img src="/icons/video-icon.png" />
-            </div>
+<!--            <div v-if="item.noteType === 'video'" class="video-icon">-->
+<!--              <img src="/icons/video-icon.png" />-->
+<!--            </div>-->
           </div>
 
           <!-- 内容框 -->
@@ -74,11 +74,11 @@
       <div class="modal-content" @click.stop>
 
         <!-- 左侧图片或视频 -->
-        <div class="modal-image" v-if="selectedNote.noteType === 'image'">
+        <div class="modal-image">
           <!-- 左侧当前图片 -->
           <img
-            :src="selectedNote.noteCover[currentImageIndex]"
-            @click="toggleFullscreenImage"
+              :src="selectedNote.noteCover[currentImageIndex]"
+              @click="toggleFullscreenImage"
           />
 
           <div  v-if="selectedNote.noteCover.length > 1" class="image-navigation">
@@ -90,12 +90,12 @@
           </div>
         </div>
 
-        <div class="modal-image" v-if="selectedNote.noteType === 'video'">
-          <!-- 视频播放器 -->
-          <video v-if="selectedNote.noteType === 'video'" controls>
-            <source :src="selectedNote.video" type="video/mp4" />
-          </video>
-        </div>
+<!--        <div class="modal-image" v-if="selectedNote.noteType === 'video'">-->
+<!--          &lt;!&ndash; 视频播放器 &ndash;&gt;-->
+<!--          <video v-if="selectedNote.noteType === 'video'" controls>-->
+<!--            <source :src="selectedNote.video" type="video/mp4" />-->
+<!--          </video>-->
+<!--        </div>-->
         <!-- 右侧文字 -->
         <div class="modal-text">
           <!-- 发布者信息 -->
@@ -111,8 +111,8 @@
             <!-- tag -->
             <span class="modal-tag" v-if="selectedNote.tag.length > 0">
               <span
-                v-for="(tag, index) in selectedNote.tag"
-                :key="index"
+                  v-for="(tag, index) in selectedNote.tag"
+                  :key="index"
               >
                 #{{ tag }}
               </span>
@@ -164,31 +164,28 @@
 
 <script lang="ts" setup>
 import { ref, onMounted } from "vue";
-import { mockCategoryList, mockNoteList } from "@/mockData";
 import Login from "@/pages/user/user_login.vue";
+import axios from 'axios';
 
-const noteList = ref(mockNoteList);
-const categoryList = ref(mockCategoryList);
-const categoryClass = ref("0");
+
+const noteList = ref<Note[]>([]); // 从后端获取的笔记数据
+const categoryClass = ref("0"); // 当前分类，"0" 表示推荐
+
+const categoryList = ref([
+  { id: "1", title: "旅行" },
+  { id: "2", title: "返乡" },
+  { id: "3", title: "外出活动" }
+]);
+
+const isLoading = ref(false); // 加载状态
 
 const isModalVisible = ref(false);
-const selectedNote = ref({
-  title: "",
-  username: "",
-  likeCount: 0,
-  noteCover: [],
-  content: "",
-  avatar: "",
-  collection: 0,
-  comment: 0,
-  noteType: "",
-  video: "",
-  tag: [],
-  datetime: "",
-});
 
 
-const isLoading = ref(true); // 加载状态
+
+const selectedNote = ref<Note | null>(null); // 单一笔记对象或空值
+
+
 const loginShow = ref(false); // 控制弹窗状态
 
 const isVideoPlaying = ref(false);  // 视频默认不播放
@@ -198,13 +195,145 @@ const currentImageIndex = ref(0);  // 当前显示的图片索引，用于多图
 const isFullscreen = ref(false);  // 控制全屏图片弹窗显示
 
 // 加载
+// 初始化加载数据
 onMounted(() => {
-  // 模拟异步加载数据
-  setTimeout(() => {
-    noteList.value = mockNoteList;
-    isLoading.value = false;
-  }, 1000);
+  fetchNotes(); // 默认加载推荐
 });
+
+interface Note {
+  note_id: number; // 后端的note_id
+  title: string; // 后端的note_title
+  content: string; // 后端的note_content
+  viewCount: number; // 后端的view_count
+  tag: string[]; // 后端的note_tag_list
+  noteType?: string; // 后端的note_type
+  noteCover: string[]; // 后端的note_urls
+  creatorId: number; // 后端的note_creator_id
+  datetime: string; // 后端的note_update_time
+  likeCount: number; // 后端的like_counts
+  collection: number; // 后端的collect_counts
+  avatar: string; // 默认头像（前端根据需要填充）
+  username: string; // 作者名称（前端根据需要填充）
+}
+
+const fetchNotes = async (noteType: string | null = null) => {
+  isLoading.value = true;
+  try {
+    const response = await axios.get('/api/note/getNotesByUpdateTime', {
+      params: {
+        note_type: noteType || '',  // 如果为 null，则传递空字符串，获取所有数据
+        cursor: '',
+        num: 10,
+      },
+    });
+
+    // 打印后端返回的数据以调试
+    console.log('Response Data:', response.data);
+
+    // 检查返回的数据是否包含 notes 字段
+    if (response.data && response.data.data && response.data.data.notes) {
+      const notes = response.data.data.notes;
+
+      // 通过 creatorId 填充 username 和 avatar
+      for (let note of notes) {
+        const username = await fetchUsernameById(note.note_creator_id);
+        note.username = username || '未知用户'; // 如果用户名获取失败，使用 '未知用户'
+
+        const avatar = await fetchAvatarById(note.note_creator_id);
+        note.avatar = avatar || '默认头像路径'; // 如果头像获取失败，使用 '默认头像路径'
+      }
+
+      // 更新 noteList
+      noteList.value = notes.map((note: any) => ({
+        note_id: note.note_id,
+        title: note.note_title,
+        content: note.note_content,
+        viewCount: note.view_count,
+        tag: note.note_tag_list || [],  // 标签列表
+        noteCover: typeof note.note_urls === "string" ? note.note_urls.split(",") : note.note_urls || [],
+        creatorId: note.note_creator_id,  // 作者ID
+        datetime: note.note_update_time,  // 更新时间
+        likeCount: note.like_counts,  // 点赞数
+        collection: note.collect_counts,  // 收藏数
+        username: note.username, // 添加用户名
+        avatar: note.avatar,  // 添加头像
+      }));
+    } else {
+      console.error('后端返回数据格式错误：缺少 notes 字段');
+    }
+    isLoading.value = false;
+  } catch (error) {
+    console.error('获取笔记数据失败', error);
+    isLoading.value = false;
+  }
+};
+
+
+// 获取用户名的函数
+const fetchUsernameById = async (userId: number): Promise<string | null> => {
+  try {
+    const response = await axios.get(`/api/auth/getUserInfoByID`, {
+      params: { id: userId },
+    });
+    console.log('User info response:', response.data);  // 打印返回的数据
+    if (response.data && response.data.status === '成功') {
+      return response.data.username; // 返回用户名
+    } else {
+      console.error('获取用户名失败', response.data.msg || '未知错误');
+      return null;
+    }
+  } catch (error) {
+    console.error('请求用户信息失败', error);
+    return null;
+  }
+};
+
+// 获取用户头像的函数
+const fetchAvatarById = async (userId: number): Promise<string | null> => {
+  try {
+    const response = await axios.get(`/api/auth/getAvatar`, {
+      params: { uid: userId },
+    });
+    console.log('Avatar response:', response.data); // 打印返回的数据
+    if (response.data && response.data.avatar) {
+      return response.data.avatar; // 返回头像URL
+    } else {
+      console.error('获取头像失败', response.data.error || '未知错误');
+      return null;
+    }
+  } catch (error) {
+    console.error('请求用户头像失败', error);
+    return null;
+  }
+};
+
+
+// 切换分类
+const getNoteListByCategory = (id: string) => {
+  categoryClass.value = id;
+  noteList.value = []; // 清空当前显示的笔记列表
+  fetchNotes(id === '0' ? null : id);
+};
+
+
+
+// 推荐
+const getNoteList = () => {
+  categoryClass.value = '0';
+  fetchNotes(null);
+};
+
+
+// 获取分类数据
+const fetchCategories = () => {
+  categoryList.value = [
+    { id: "1", title: "旅行" },
+    { id: "2", title: "返乡" },
+    { id: "3", title: "外出活动" }
+  ];
+};
+
+
 
 // 显示登录弹窗的函数
 const login = () => {
@@ -233,22 +362,12 @@ const closeModal = () => {
 };
 
 
-// 获取当前分类下的 note 数据
-const getFilteredNoteList = () => {
-  if (categoryClass.value === "0") {
-    // 显示推荐
-    return mockNoteList;
-  } else {
-    // 根据当前分类 ID 筛选
-    return mockNoteList.filter((item) => item.categoryId === categoryClass.value);
-  }
-};
 
 // 刷新按钮点击事件
 const refreshContent = () => {
   isLoading.value = true;
   setTimeout(() => {
-    noteList.value = shuffleArray(getFilteredNoteList()); // 模拟异步刷新
+    //noteList.value = shuffleArray(getFilteredNoteList()); // 模拟异步刷新
     isLoading.value = false; // 关闭加载状态
   }, 500); // 设置加载时间
 };
@@ -263,16 +382,6 @@ const shuffleArray = (array: any[]) => {
   return shuffled;
 };
 
-// 分类切换逻辑
-const getNoteList = () => {
-  categoryClass.value = "0"; // 推荐分类
-  noteList.value = getFilteredNoteList();
-};
-
-const getNoteListByCategory = (id: string) => {
-  categoryClass.value = id; // 设置当前分类
-  noteList.value = getFilteredNoteList();
-};
 
 // 笔记图片切换函数
 const prevImage = () => {
@@ -586,6 +695,7 @@ const closeFullscreen = () => {
     transform: translateY(-50%);
     z-index: 1;
     padding: 0 5px;
+    visibility: hidden;
   }
 
   .image-index {
@@ -836,6 +946,5 @@ const closeFullscreen = () => {
   max-height: 100%;
   object-fit: contain;
 }
-
 
 </style>
