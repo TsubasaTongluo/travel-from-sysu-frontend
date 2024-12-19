@@ -1,21 +1,47 @@
 <template>
   <div class="publish-next-container">
-    <!-- 图片和视频预览区域 -->
+    <!-- 文件预览区域 -->
     <div class="preview-area">
-      <div v-for="(file, index) in files" :key="index" class="preview-item">
-        <img v-if="file.type.startsWith('image/')" :src="file.url" alt="预览" />
-        <video v-else :src="file.url" controls></video>
+      <div
+        v-for="(file, index) in files"
+        :key="index"
+        class="preview-item"
+        :class="{ 'video-preview': isVideoType }"
+      >
+        <!-- 图片预览 -->
+        <img
+          v-if="file.url && !isVideoType"
+          :src="file.url"
+          alt="图片预览"
+        />
+        <!-- 视频预览 -->
+        <video
+          v-if="file.url && isVideoType"
+          :src="file.url"
+          controls
+          alt="视频预览"
+        ></video>
         <button class="delete-button" @click="deleteFile(index)">X</button>
       </div>
-      <button class="add-button" @click="openFileDialog">Add</button>
+      <!-- Add 按钮 -->
+      <button
+        v-if="!isVideoType || files.length === 0"
+        class="add-button"
+        @click="openFileDialog"
+      >
+        Add
+      </button>
       <input
         type="file"
-        multiple
-        accept="image/*, video/*"
+        :accept="isVideoType ? 'video/*' : 'image/*'"
         class="hidden-input"
         ref="fileInput"
         @change="handleFileSelect"
       />
+    </div>
+    <!-- 灰色蒙版显示上传状态 -->
+    <div v-if="isUploading || isPublishing" class="loading-overlay">
+      <div class="spinner"></div>
     </div>
 
     <!-- 标题输入框 -->
@@ -123,25 +149,21 @@
     </div>
   </div>
 </template>
+
 <script lang="ts" setup>
+import { useUserStore } from '@/store/user';
 import { ref, onMounted } from "vue";
 import { useRoute } from "vue-router";
+import { useRouter } from "vue-router";
 import axios from "axios";
 
 const route = useRoute();
-// 接收传递的文件信息
-const files = ref<File[]>([]);
+const router = useRouter(); 
 
-const addFile = (file: File) => {
-  if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
-    alert("只能添加图片或视频文件");
-    return;
-  }
-
-  // 创建一个新的 File 对象包含 URL，存储在 files 数组中
-  const fileWithUrl = { ...file, url: URL.createObjectURL(file) };
-  files.value.push(fileWithUrl);
-};
+// 用户ID
+const userstore = useUserStore();
+const user = userstore.getUserInfo();
+const userId = user?.uid;  
 
 // 页面标题状态
 const title = ref<string>(""); // 标题文本
@@ -170,10 +192,39 @@ const isFindingPartner = ref(false);
 const partnerDescription = ref<string>(""); // 旅伴描述
 const isPartnerDescriptionExceeded = ref(false); // 描述是否超出字数
 
+const files = ref<{ file: File | null; url: string }[]>([]); // 图片文件与预览 URL
+const note_urls = ref<string[]>([]); // 上传成功后的图片 URL 列表
+const isUploading = ref(false); // 上传状态
+const isPublishing = ref(false); // 发布状态
+
+// 视频类型检查
+const isVideoType = ref(true); // 是否为视频笔记类型
+
 // 初始化时从路由参数加载文件
 onMounted(() => {
-  const fileData = route.query.files ? JSON.parse(route.query.files as string) : [];
-  files.value = fileData;
+  const fileUrl = route.query.fileUrl as string;
+  const type = route.query.type as string;
+
+  if (fileUrl && type === "image") {
+    isVideoType.value = false; // 明确设置为 false
+    files.value = [
+      {
+        file: null,
+        url: fileUrl,
+      },
+    ];
+    note_urls.value.push(fileUrl); // 初始化 note_urls 列表
+  } else if (fileUrl && type === "video") {
+    isVideoType.value = true; // 明确设置为 true
+    files.value = [
+      {
+        file: null,
+        url: fileUrl,
+      },
+    ];
+    note_urls.value.push(fileUrl); // 初始化 note_urls 列表
+  }
+  console.log("isVideoType on init:", isVideoType.value);
 });
 
 // 打开文件选择框
@@ -183,18 +234,113 @@ const openFileDialog = () => {
 };
 
 // 处理文件选择
-const handleFileSelect = (event: Event) => {
+const handleFileSelect = async (event: Event): Promise<void> => {
   const input = event.target as HTMLInputElement;
-  if (!input.files) return;
+  if (!input.files || input.files.length === 0) return;
 
-  Array.from(input.files).forEach((file) => {
-    addFile(file);
-  });
+  const file: File = input.files[0];
+  await uploadFile(file);
+};
+
+
+// 上传文件到 OSS
+// const uploadFile = async (file: File) => {
+//   const formData = new FormData();
+//   formData.append("file", file);
+
+//   isUploading.value = true; // 显示上传状态
+
+//   try {
+//     const response = await axios.post("/api/note/uploadNotePic", formData, {
+//       headers: { "Content-Type": "multipart/form-data" },
+//     });
+
+//     if (response.status === 200 && response.data.status === "成功") {
+//       const uploadedUrl = response.data.url;
+
+//       // 如果是视频类型，确保只保留一个文件
+//       if (isVideoType.value) {
+//         files.value = [{ file: null, url: uploadedUrl }];
+//         note_urls.value = [uploadedUrl];
+//       } else {
+//         files.value.push({ file: null, url: uploadedUrl });
+//         note_urls.value.push(uploadedUrl);
+//       }
+//     } else {
+//       throw new Error(response.data.error || "上传失败");
+//     }
+//   } catch (error) {
+//     console.error("文件上传失败：", error);
+//     alert("上传失败，请重试！");
+//   } finally {
+//     isUploading.value = false; // 隐藏上传状态
+//   }
+// };
+const uploadFile = async (file: File) => {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  isUploading.value = true; // 显示上传状态
+
+  try {
+    // 根据文件类型选择接口
+    const apiEndpoint = isVideoType.value
+      ? "/api/note/uploadNoteVideo"
+      : "/api/note/uploadNotePic";
+
+    const response = await axios.post(apiEndpoint, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    if (response.status === 200 && response.data.status === "成功") {
+      const uploadedUrl = response.data.url;
+
+      // 如果是视频类型，确保只保留一个文件
+      if (isVideoType.value) {
+        files.value = [{ file: null, url: uploadedUrl }];
+        note_urls.value = [uploadedUrl];
+      } else {
+        files.value.push({ file: null, url: uploadedUrl });
+        note_urls.value.push(uploadedUrl);
+      }
+    } else {
+      throw new Error(response.data.error || "上传失败");
+    }
+  } catch (error) {
+    console.error("文件上传失败：", error);
+    alert("上传失败，请重试！");
+  } finally {
+    isUploading.value = false; // 隐藏上传状态
+  }
 };
 
 // 删除文件
-const deleteFile = (index: number) => {
-  files.value.splice(index, 1);
+const deleteFile = async (index: number) => {
+  const deletedFile = files.value[index]; // 获取要删除的文件
+  const fileUrl = note_urls.value[index]; // 获取对应的 URL
+
+  try {
+    // 调用后端删除接口
+        // 调用后端删除接口（使用 GET 请求并传递 URL 参数）
+        const response = await axios.get('/api/note/deleteUploadedFile', {
+      params: {
+        file_url: fileUrl,
+      },
+    });
+
+    if (response.status === 200 && response.data.status === "成功") {
+      // 从前端列表中删除文件
+      files.value.splice(index, 1);
+      note_urls.value.splice(index, 1);
+      console.log("文件删除成功：", deletedFile);
+    } else {
+      console.error("文件删除失败：", response.data.error || "未知错误");
+      alert("文件删除失败，请稍后再试！");
+    }
+  } catch (error) {
+    console.error("删除文件请求失败：", error);
+    alert("删除文件时发生错误，请稍后再试！");
+  }
 };
 
 // 检查标题字数
@@ -261,31 +407,26 @@ const checkPartnerDescriptionLength = () => {
   isPartnerDescriptionExceeded.value = partnerDescription.value.length > 250;
 };
 
-// 用户ID
-const userId = "1";  // 显式声明类型为 string，并赋值为字符串
-
 // 发布笔记
 const publishNote = async () => {
+  console.log("note_urls:"+note_urls.value);
   // 校验必填项
-  if (title.value.length === 0 || info.value.length === 0 || files.value.length === 0) {
+  if (title.value.length === 0 || info.value.length === 0 || note_urls.value.length === 0) {
     alert("标题、信息和图片都是必填项！");
     return;
   }
 
-  // 创建 FormData 实例，用于上传文件
+  // 显示发布状态
+  isPublishing.value = true;
+
+  // 创建 FormData 实例
   const formData = new FormData();
-
-  // 将文件对象直接添加到 FormData
-  files.value.forEach((file) => {
-    formData.append('files', file);  // 'files' 是后台接收的字段名
-  });
-
-  // 将其他数据字段添加到 FormData
   formData.append('note_title', title.value);
   formData.append('note_content', info.value);
   formData.append('note_tag_list', [...customTags.value].join(','));
   formData.append('note_type', selectedTag.value || '');
   formData.append('note_creator_id', userId);
+  formData.append('note_urls',JSON.stringify(note_urls.value));
 
   // 打印 FormData 的内容
   for (let pair of formData.entries()) {
@@ -300,16 +441,21 @@ const publishNote = async () => {
 
     if (response.status === 200) {
       alert('发布成功！');
+      // 跳转到个人主页
+      router.push('/userInfo');
     } else {
       alert('发布失败，请重试！');
     }
   } catch (error) {
     console.error('发布失败', error);
     alert('发布失败，请重试！');
+  }finally {
+    isPublishing.value = false; // 隐藏发布状态
   }
 };
 </script>
-  <style scoped>
+
+<style scoped>
   .publish-next-container {
     display: flex;
     flex-direction: column;
@@ -349,16 +495,28 @@ const publishNote = async () => {
   }
   
   .preview-item img {
-    max-width: 100%;
-    max-height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: cover; /* 适配图片 */
   }
+
+  .video-preview {
+    width: 250px; /* 视频预览更宽一些 */
+    height: 140px; /* 按比例调整 */
+  }
+
+  .video-preview video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* 确保视频适配区域 */
+  } 
   
   .delete-button {
     position: absolute;
     top: 5px;
     right: 5px;
     padding: 5px;
-    background-color: #f44336;
+    background-color: #474141;
     color: white;
     border: none;
     border-radius: 50%;
@@ -601,5 +759,35 @@ const publishNote = async () => {
   .publish-note-button:hover {
     background-color: #d32f2f; /* 悬停时变为深红色 */
   }
-  
-  </style>
+
+  .loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid #f3f3f3;
+  border-top: 5px solid #f44336;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+</style>

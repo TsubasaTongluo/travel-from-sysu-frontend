@@ -250,7 +250,23 @@ const fetchNotes = async (noteType: string | null = null) => {
         content: note.note_content,
         viewCount: note.view_count,
         tag: note.note_tag_list || [],  // 标签列表
-        noteCover: typeof note.note_urls === "string" ? note.note_urls.split(",") : note.note_urls || [],
+        // noteCover: typeof note.note_urls === "string" ? note.note_urls.split(",") : note.note_urls || [],
+        noteCover: (() => {
+          if (typeof note.note_urls === "string") {
+            try {
+              const parsedUrls = JSON.parse(note.note_urls); // 解析 JSON
+              if (Array.isArray(parsedUrls)) {
+                return parsedUrls;
+              }
+            } catch (error) {
+              console.error("note_urls 字段解析失败：", error);
+            }
+            return [];
+          } else if (Array.isArray(note.note_urls)) {
+            return note.note_urls;
+          }
+          return [];
+        })(),
         creatorId: note.note_creator_id,  // 作者ID
         datetime: note.note_update_time,  // 更新时间
         likeCount: note.like_counts,  // 点赞数

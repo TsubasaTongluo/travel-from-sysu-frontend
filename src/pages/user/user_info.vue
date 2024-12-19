@@ -265,12 +265,21 @@ const getNoteList = async (type: number) => {
 
             // 如果 note_URLs 是 longtext 类型的字符串，拆分成数组
             if (typeof note.note_urls === "string") {
-              new_note.note_URLs = note.note_urls.split(",").map(url => url.trim());
+              // new_note.note_URLs = note.note_urls.split(",").map(url => url.trim());
+              try {
+                const parsedUrls = JSON.parse(note.note_urls); // 解析 JSON
+                if (Array.isArray(parsedUrls)) {
+                  new_note.note_URLs = parsedUrls;
+                }
+              } catch (error) {
+                console.error("note_urls 字段解析失败：", error);
+              }
             } else if (Array.isArray(note.note_urls)) {
               new_note.note_URLs = note.note_urls;
             } else {
               new_note.note_URLs = [];
             }
+            
 
             // 获取用户信息和头像
             try {
