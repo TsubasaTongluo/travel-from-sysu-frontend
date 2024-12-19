@@ -166,6 +166,7 @@
 import { ref, onMounted } from "vue";
 import Login from "@/pages/user/user_login.vue";
 import axios from 'axios';
+import defaultAvatar from '@/assets/logo.png';
 
 
 const noteList = ref<Note[]>([]); // 从后端获取的笔记数据
@@ -240,7 +241,7 @@ const fetchNotes = async (noteType: string | null = null) => {
         note.username = username || '未知用户'; // 如果用户名获取失败，使用 '未知用户'
 
         const avatar = await fetchAvatarById(note.note_creator_id);
-        note.avatar = avatar || '默认头像路径'; // 如果头像获取失败，使用 '默认头像路径'
+        note.avatar = avatar || defaultAvatar; // 如果头像获取失败，使用 '默认头像路径'
       }
 
       // 更新 noteList
