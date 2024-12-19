@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 import Login from "@/pages/user/user_login.vue";
 import Dashboard from "@/pages/dashboard/dashboard_index.vue";
+import PublishNext from "@/pages/push/publish_next.vue"; // 导入新的页面
 
 export const routes = [
   {
@@ -45,15 +46,20 @@ export const routes = [
       },
       {
         path: "/userInfo",
-        component: ()=> import("@/pages/user/user_info.vue"),
+        component: () => import("@/pages/user/user_info.vue"),
         name: "userInfo",
       },
     ],
   },
   {
-    name:"editInfo",
-    path:"/editInfo",
-    component: ()=> import("@/pages/user/edit_info.vue"),
+    name: "editInfo",
+    path: "/editInfo",
+    component: () => import("@/pages/user/edit_info.vue"),
+  },
+  {
+    name: "publishNext",  // 新增的 publishNext 路由
+    path: "/publish/next",
+    component: PublishNext,  // 指向新的页面组件
   },
 ];
 
