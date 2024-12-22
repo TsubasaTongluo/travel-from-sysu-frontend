@@ -42,7 +42,7 @@
               <div class="user-interactions">
                 <!-- 需要获取用户的作品、关注、粉丝数 -->
                 <div>
-                  <span class="count">{{ userInfo.trend_count }}</span
+                  <span class="count">{{ userInfo.note_count }}</span
                   ><span class="shows">作品</span>
                 </div>
                 <div>
@@ -103,7 +103,7 @@
         >
           <div class="image-wrapper">
             <img
-                :src="item.note_URLs[0]"
+                :src="item.noteType === 'video' ? '/images/defaultPoster.jpg' : item.note_URLs[0]"
                 :style="{
                 maxWidth: '210px',
                 borderRadius: '8px',
@@ -112,9 +112,9 @@
                 @click="toMain(item)"
             />
 
-            <!--            <div v-if="item.noteType === 'video'" class="video-icon">-->
-            <!--              <img src="/icons/video-icon.png" />-->
-            <!--            </div>-->
+            <div v-if="item.noteType === 'video'" class="video-icon">
+              <img src="/icons/video-icon.png" />
+            </div>
           </div>
 
           <!-- 内容框 -->
@@ -129,7 +129,10 @@
               </a>
               <span class="like-wrapper like-active">
                 <i class="iconfont icon-follow" style="width: 1em; height: 1em"></i>
-                <img src="/icons/like.png" class="like-icon" @click="like_note" />
+                <img 
+                :src="item.isLike ? '/icons/like-filled.png' : '/icons/like.png'" 
+                class="like-icon" 
+                @click="item.isLike ? unlike_note : like_note" />
                 <span class="count">{{ item.like_counts }}</span>
               </span>
             </div>
@@ -143,7 +146,7 @@
       <div class="modal-content" @click.stop>
 
         <!-- 左侧图片或视频 -->
-        <div class="modal-image">
+        <div class="modal-image" v-if="selectedNote.noteType === 'image'">
           <!-- 左侧当前图片 -->
           <img
               :src="selectedNote.note_URLs[currentImageIndex]"
@@ -162,7 +165,7 @@
         <div class="modal-image" v-if="selectedNote.noteType === 'video'">
           <!-- 视频播放器 -->
           <video v-if="selectedNote.noteType === 'video'" controls>
-            <source :src="selectedNote.video" type="video/mp4" />
+            <source :src="selectedNote?.note_URLs[0]" type="video/mp4" />
           </video>
         </div>
         <!-- 右侧文字 -->
@@ -201,11 +204,17 @@
             <!-- 点赞收藏评论按钮 -->
             <div class="action-buttons">
               <span class="action-button" @click="like_note">
-                <img src="/icons/like.png" class="icons"/>
+                <img 
+                :src="selectedNote?.isLike ? '/icons/like-filled.png' : '/icons/like.png'" 
+                class="icons" 
+                @click="selectedNote.isLike ? unlike_note : like_note" />
                 <i class="iconfont icon-like"></i> {{ selectedNote.like_counts }}
               </span>
               <span class="action-button" @click="collect_note">
-                <img src="/icons/collection.png" class="icons"/>
+                <img 
+                :src="selectedNote?.isCollection ? '/icons/collection-filled.png' : '/icons/collection.png'" 
+                class="icons" 
+                @click="selectedNote?.isCollection ? unlike_note : like_note" />
                 <i class="iconfont icon-collection"></i> {{ selectedNote.collect_counts }}
               </span>
               <span class="action-button" @click="comment_note">
@@ -230,10 +239,12 @@ import { useRoute, useRouter } from "vue-router";
 import defaultAvatar from '@/assets/logo.png';
 import axios from "axios";
 import type {Note} from "@/type/note";
+import { User } from "@/type/user";
+import { ElMessage } from "element-plus";
 const route = useRoute();
 const userStore = useUserStore();
 // const currentUid = ref("1");
-const userInfo = ref<any>({});
+const userInfo = ref<User | null>(null);
 const type = ref(0);
 const router = useRouter();
 
@@ -252,65 +263,142 @@ watch(
 
 const getNoteList = async (type: number) => {
   if (type === 1) {
-    // todo: 作品数量=0特殊处理
     try {
       const res = await get_trend();
-      console.log(res);
+      // console.log(res);
 
-      // 过滤出与当前用户 id 一致的帖子
-      notelist.value = await Promise.all(res.data.data.notes
-          .filter((note: any) => note.note_creator_id === userStore.getUserInfo()?.uid)  // 只保留 creator_id 与当前用户一致的帖子
-          .map(async (note: any) => {
-            let new_note: Note = { ...note };
+      notelist.value = await processNotes(res);
 
-            // 如果 note_URLs 是 longtext 类型的字符串，拆分成数组
-            if (typeof note.note_urls === "string") {
-              // new_note.note_URLs = note.note_urls.split(",").map(url => url.trim());
-              try {
-                const parsedUrls = JSON.parse(note.note_urls); // 解析 JSON
-                if (Array.isArray(parsedUrls)) {
-                  new_note.note_URLs = parsedUrls;
-                }
-              } catch (error) {
-                console.error("note_urls 字段解析失败：", error);
-              }
-            } else if (Array.isArray(note.note_urls)) {
-              new_note.note_URLs = note.note_urls;
-            } else {
-              new_note.note_URLs = [];
-            }
-            
-
-            // 获取用户信息和头像
-            try {
-              const userInfo = await get_userinfo(new_note.note_creator_id);
-              new_note.username = userInfo.data.username;
-            } catch (error) {
-              console.log("获取用户信息失败:", error);
-              new_note.username = "未知用户"; // 默认用户名
-            }
-
-            // 获取头像
-            try {
-              new_note.avatar = await get_avatar(new_note.note_creator_id);
-            } catch (error) {
-              console.log("获取头像失败:", error);
-              new_note.avatar = defaultAvatar; // 如果头像获取失败，设置为默认头像
-            }
-
-            new_note.note_tag_list = [];
-
-            return new_note;
-          }));
-
-      console.log(notelist.value);
+      // console.log(notelist.value);
     } catch (error) {
       console.log("获取作品失败", error);
+      notelist.value = [];
+    }
+  }else if( type===2 ){
+    try {
+      const res = await get_like();
+      // console.log(res);
+
+      notelist.value = await processNotes(res);
+
+      // console.log(notelist.value);
+    } catch (error) {
+      console.log("获取点赞作品失败", error);
+      notelist.value = [];
+    }
+  }else if(type===3){
+    try {
+      const res = await get_collect();
+      // console.log(res);
+
+      notelist.value = await processNotes(res);
+
+      // console.log(notelist.value);
+    } catch (error) {
+      console.log("获取点赞作品失败", error);
       notelist.value = [];
     }
   }
 };
 
+async function processNotes(res: any): Promise<Note[]> {
+
+  const notes = res.data.data.notes;
+
+  // 如果 notes 为 null 或 undefined，返回空数组
+  if (!notes) {
+    console.log("No notes found");
+    return [];
+  }
+
+  return await Promise.all(res.data.data.notes
+    .map(async (note: any) => {
+      let new_note: Note = { ...note };
+
+      // 如果 note_URLs 是 longtext 类型的字符串，拆分成数组
+      if (typeof note.note_urls === "string") {
+        try {
+          const parsedUrls = JSON.parse(note.note_urls); // 解析 JSON
+          if (Array.isArray(parsedUrls)) {
+            new_note.note_URLs = parsedUrls;
+          }
+        } catch (error) {
+          console.error("note_urls 字段解析失败：", error);
+        }
+      } else if (Array.isArray(note.note_urls)) {
+        new_note.note_URLs = note.note_urls;
+      } else {
+        new_note.note_URLs = [];
+      }
+
+      // 获取第一个 URL 并判断类型
+      if (new_note.note_URLs.length > 0) {
+        new_note.noteType = getFileType(new_note.note_URLs[0]);
+      } else {
+        console.log("No URL found");
+      }
+
+      // 获取用户信息和头像
+      try {
+        const userInfo = await get_userinfo(new_note.note_creator_id);
+        new_note.username = userInfo.data.username;
+      } catch (error) {
+        console.log("获取用户信息失败:", error);
+        new_note.username = "未知用户"; // 默认用户名
+      }
+
+      // 获取头像
+      try {
+        new_note.avatar = await get_avatar(new_note.note_creator_id);
+      } catch (error) {
+        console.log("获取头像失败:", error);
+        new_note.avatar = defaultAvatar; // 如果头像获取失败，设置为默认头像
+      }
+
+      // 解析tag list
+      new_note.note_tag_list = note.note_tag_list ? note.note_tag_list.split(',').map(tag => tag.trim()) : []; // 如果为空，则赋值为空数组
+
+      // 获取是否点赞/收藏
+      try {
+        const res = await getifuserlikeorcollect(new_note.note_id.toString());
+        // console.log("获取是否点赞与收藏",res);
+        const {collect,like} = res.data.data;
+        new_note.isCollection = collect===0? false:true;
+        new_note.isLike = like===0? false:true;
+      }catch(error){
+        console.log("获取是否点赞与收藏出错：",error);
+        new_note.isCollection=false;
+        new_note.isLike=false;
+      }
+
+      return new_note;
+    }));
+}
+
+
+// 判断文件类型
+function getFileType(url: string): string {
+  const ext = getFileExtension(url).toLowerCase();
+  
+  // 视频文件扩展名
+  const videoExtensions = ['.mp4', '.avi', '.mov', '.mkv'];
+  // 图片文件扩展名
+  const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp'];
+
+  if (videoExtensions.includes(ext)) {
+    return 'video';
+  } else if (imageExtensions.includes(ext)) {
+    return 'image';
+  }
+  
+  return 'unknown';  // 如果扩展名不匹配，返回 "unknown"
+}
+
+// 获取文件扩展名
+function getFileExtension(url: string): string {
+  const dotIndex = url.lastIndexOf('.');
+  return dotIndex !== -1 ? url.slice(dotIndex) : '';
+}
 
 async function get_userinfo(uid: number) {
   return await axios({
@@ -320,6 +408,16 @@ async function get_userinfo(uid: number) {
   });
 }
 
+async function getifuserlikeorcollect(nid: string) {
+  return await axios({
+    url: "/api/note/getIfUserLikeOrCollect",
+    method: "GET",
+    params: {
+      uid : userStore.getUserInfo()?.uid.toString(),
+      nid : nid,
+    },
+  });
+}
 
 async function get_avatar(uid: number) {
   try {
@@ -337,31 +435,7 @@ async function get_avatar(uid: number) {
 
 const selectedNote = ref<Note | null>(null); // 单一笔记对象或空值
 
-
 const isModalVisible = ref(false);
-// const selectedNote = ref<Note>({
-//   collect_counts:0,
-//   like_counts:0,
-//   note_URLs:[],
-//   note_content:'',
-//   note_creator_id:1,
-//   note_id:1,
-//   note_tag_list:[],
-//   note_title:"",
-//   note_type:"",
-//   note_update_time:"",
-//   view_count:0,
-//   //noteType:"image",
-//   //video:"",
-//   comment_counts:0,
-//   avatar:"",
-//   username:"",
-//   is_finding_buddy:0,
-//   buddy_description:"",
-//   isFollow:false,
-//   isLike:false,
-//   isCollection:false,
-// });
 
 const isVideoPlaying = ref(false);  // 视频默认不播放
 
@@ -407,6 +481,11 @@ const closeFullscreen = () => {
   isFullscreen.value = false;
 };
 
+const unlike_note = () => {
+  // todo: unlike接口
+  console.log("unlike!");
+}
+
 const like_note = () =>{
   // todo: like接口
   console.log("like!");
@@ -424,12 +503,47 @@ const comment_note = () =>{
 
 
 async function get_trend(){
+  // todo: get trend   一次获取几个帖子(暂定获取所有作品)  分页肿么弄 ww?  session/local storage?
   return await axios({
     url:"/api/note/getNotesByCreatorId",
     method: "GET",
     params: {
       creator_id: userStore.getUserInfo()?.uid,
-      num : userStore.getUserInfo()?.trend_count,
+      num : 10 ,
+    },
+  });
+};
+
+async function get_like(){
+  // todo: get like   一次获取几个帖子(暂定10个)？
+  return await axios({
+    url:"/api/note/getUserLikeNotes",
+    method: "GET",
+    params: {
+      user_id: userStore.getUserInfo()?.uid,
+      num : 10,
+    },
+  });
+};
+
+async function get_collect(){
+  // todo: get like  一次获取几个帖子(暂定10个)？
+  return await axios({
+    url:"/api/note/getUserCollectNotes",
+    method: "GET",
+    params: {
+      user_id: userStore.getUserInfo()?.uid,
+      num : 10,
+    },
+  });
+};
+
+async function getuserInfo(){
+  return await axios({
+    url:"/api/auth/getUserInfoByID",
+    method: "GET",
+    params: {
+      id: userStore.getUserInfo()?.uid,
     },
   });
 };
@@ -463,7 +577,21 @@ const initData = () => {
   type.value = 1;
   userInfo.value = userStore.getUserInfo();
   console.log(userInfo);
-  console.log("init");
+  getuserInfo().then(res =>{
+    console.log(res);
+    if(res.data.code===200){
+      //todo: 每次进入个人主页时具体需要刷新哪些字段？  trand_count?
+      if(userInfo.value!==null){
+        userInfo.value.note_count = res.data.note_count;
+        userInfo.value.fan_count = res.data.fan_count;
+        userInfo.value.follower_count = res.data.follower_count;
+        userStore.setUserInfo(userInfo.value);
+      }
+    }else{
+      ElMessage.error("更新个人信息失败，请稍候重试");
+      console.log(res.data.error);
+    }
+  }).catch(error => { console.log('更新个人信息失败:', error)});
 };
 
 initData();

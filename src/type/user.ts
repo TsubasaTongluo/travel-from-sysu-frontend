@@ -11,7 +11,7 @@ export interface User{
   description: string;
   phone: string;
   email: string;
-  trend_count: number;
+  note_count: number;
   follower_count: number;
   fan_count: number;
   gender:number;
