@@ -26,27 +26,32 @@
 
     <div class="feeds-container" :class="{ 'loading': isLoading }">
       <div class="grid-container">
-        <div
-            class="card"
-            v-for="item in noteList"
-            :key="item.id"
-            style="max-width: 240px"
-        >
+        <div class="card" v-for="item in noteList" :key="item.id" style="max-width: 240px">
           <div class="image-wrapper">
+            <!-- 如果是视频类型，显示视频封面 -->
             <img
-                :src="item.noteCover[0]"
-                :style="{
-                maxWidth: '210px',
-                borderRadius: '8px',
-              }"
+                v-if="isVideo(item.noteCover[0])"
+                :src=default_videoCover
+                :style="{ maxWidth: '210px', borderRadius: '8px' }"
                 fit="contain"
                 @click="toMain(item)"
             />
 
-            <!--            <div v-if="item.noteType === 'video'" class="video-icon">-->
-            <!--              <img src="/icons/video-icon.png" />-->
-            <!--            </div>-->
+
+            <div v-if="isVideo(item.noteCover[0])" class="video-icon">
+              <img src="/icons/video-icon.png" />
+            </div>
+
+            <!-- 如果是图片类型，正常显示图片 -->
+            <img
+                v-else
+                :src="item.noteCover[0]"
+                :style="{ maxWidth: '210px', borderRadius: '8px' }"
+                fit="contain"
+                @click="toMain(item)"
+            />
           </div>
+
 
           <!-- 内容框 -->
           <div class="footer">
@@ -60,7 +65,7 @@
               </a>
               <span class="like-wrapper like-active">
                 <i class="iconfont icon-follow" style="width: 1em; height: 1em"></i>
-                <img src="/icons/like.png" class="like-icon" @click="login" />
+                <img src="/icons/like.png" class="like-icon" @click="handleAction('like')" />
                 <span class="count">{{ item.likeCount }}</span>
               </span>
             </div>
@@ -73,15 +78,24 @@
     <div v-if="isModalVisible" class="modal" @click="closeModal">
       <div class="modal-content" @click.stop>
 
-        <!-- 左侧图片或视频 -->
+        <!-- 弹窗左侧图片或视频 -->
         <div class="modal-image">
-          <!-- 左侧当前图片 -->
+          <!-- 如果是视频格式 -->
+          <div v-if="isVideo(selectedNote.noteCover[currentImageIndex])">
+            <video controls>
+              <source :src="selectedNote.noteCover[currentImageIndex]" type="video/mp4" />
+            </video>
+          </div>
+
+          <!-- 如果是图片格式 -->
           <img
+              v-else
               :src="selectedNote.noteCover[currentImageIndex]"
               @click="toggleFullscreenImage"
           />
 
-          <div  v-if="selectedNote.noteCover.length > 1" class="image-navigation">
+
+          <div v-if="selectedNote.noteCover.length > 1" class="image-navigation">
             <!-- 显示当前图片页数 -->
             <span class="image-index">{{ currentImageIndex + 1 }}/{{ selectedNote.noteCover.length }}</span>
             <!-- 图片切换按钮 -->
@@ -90,12 +104,6 @@
           </div>
         </div>
 
-        <!--        <div class="modal-image" v-if="selectedNote.noteType === 'video'">-->
-        <!--          &lt;!&ndash; 视频播放器 &ndash;&gt;-->
-        <!--          <video v-if="selectedNote.noteType === 'video'" controls>-->
-        <!--            <source :src="selectedNote.video" type="video/mp4" />-->
-        <!--          </video>-->
-        <!--        </div>-->
         <!-- 右侧文字 -->
         <div class="modal-text">
           <!-- 发布者信息 -->
@@ -111,16 +119,17 @@
             <!-- tag -->
             <span class="modal-tag" v-if="selectedNote.tag.length > 0">
               <span
-                  v-for="(tag, index) in selectedNote.tag"
+                  v-for="(tag, index) in selectedNote.tag.split(',')"
                   :key="index"
               >
-                #{{ tag }}
+                #{{ tag.trim() }}
               </span>
             </span>
           </p>
 
+
           <!-- 修改时间 -->
-          <p class="modal-time">{{ selectedNote.datetime }}</p>
+          <p class="modal-time">{{ formatDate(selectedNote.datetime) }}</p>
           <!-- 分界线 -->
           <hr class="divider" />
           <!-- 评论区域 -->
@@ -128,20 +137,34 @@
           <!-- 底部操作栏 -->
           <div class="modal-footer">
             <!-- 输入栏 -->
-            <input type="text" class="comment-input" readonly
-                   @click="login" placeholder="登录后评论" />
+            <input
+                type="text"
+                class="comment-input"
+                :readonly="!isLoggedIn()"
+                @click="handleInputClick"
+                :placeholder="isLoggedIn() ? '说点什么……' : '登录后评论'"
+            />
             <!-- 点赞收藏评论按钮 -->
             <div class="action-buttons">
-              <span class="action-button" @click="login">
-                <img src="/icons/like.png" class="icons"/>
+              <span
+                  class="action-button"
+                  @click="handleAction('like')"
+              >
+                <img src="/icons/like.png" class="icons" />
                 <i class="iconfont icon-like"></i> {{ selectedNote.likeCount }}
               </span>
-              <span class="action-button" @click="login">
-                <img src="/icons/collection.png" class="icons"/>
+              <span
+                  class="action-button"
+                  @click="handleAction('collection')"
+              >
+                <img src="/icons/collection.png" class="icons" />
                 <i class="iconfont icon-collection"></i> {{ selectedNote.collection }}
               </span>
-              <span class="action-button" @click="login">
-                <img src="/icons/comment.png" class="icons"/>
+              <span
+                  class="action-button"
+                  @click="handleAction('comment')"
+              >
+                <img src="/icons/comment.png" class="icons" />
                 <i class="iconfont icon-comment"></i> {{ selectedNote.comment }}
               </span>
             </div>
@@ -166,25 +189,29 @@
 import { ref, onMounted } from "vue";
 import Login from "@/pages/user/user_login.vue";
 import axios from 'axios';
+import default_avatar from "@/assets/logo.png";
+import default_videoCover from "@/assets/default_videoCover.png";
+
+import { useUserStore } from "@/store/user"; // 导入 Pinia store
+
+const userStore = useUserStore();
+const userId = userStore.getUserInfo()?.id;  // 假设当前用户信息中有 id 字段
 
 
 const noteList = ref<Note[]>([]); // 从后端获取的笔记数据
 const categoryClass = ref("0"); // 当前分类，"0" 表示推荐
 
 const categoryList = ref([
-  { id: "1", title: "旅行" },
-  { id: "2", title: "返乡" },
-  { id: "3", title: "外出活动" }
+  { id: "旅行", title: "旅行" },
+  { id: "外出", title: "外出" },
+  { id: "返乡", title: "返乡" }
 ]);
 
 const isLoading = ref(false); // 加载状态
 
 const isModalVisible = ref(false);
 
-
-
 const selectedNote = ref<Note | null>(null); // 单一笔记对象或空值
-
 
 const loginShow = ref(false); // 控制弹窗状态
 
@@ -194,81 +221,148 @@ const currentImageIndex = ref(0);  // 当前显示的图片索引，用于多图
 
 const isFullscreen = ref(false);  // 控制全屏图片弹窗显示
 
-// 加载
+import { toRaw } from 'vue';  // 获取用户原始信息以判断是否登录
+
 // 初始化加载数据
 onMounted(() => {
-  fetchNotes(); // 默认加载推荐
+  const userInfo = userStore.getUserInfo();
+  if (userInfo && userInfo.username) {
+    console.log('当前用户信息:', userInfo);
+    fetchNotes(null, userInfo.username);  // 确保用户名存在并传递正确的用户信息
+  } else {
+    console.error("用户未登录，无法获取笔记！");
+  }
 });
 
-interface Note {
-  note_id: number; // 后端的note_id
-  title: string; // 后端的note_title
-  content: string; // 后端的note_content
-  viewCount: number; // 后端的view_count
-  tag: string[]; // 后端的note_tag_list
-  noteType?: string; // 后端的note_type
-  noteCover: string[]; // 后端的note_urls
-  creatorId: number; // 后端的note_creator_id
-  datetime: string; // 后端的note_update_time
-  likeCount: number; // 后端的like_counts
-  collection: number; // 后端的collect_counts
-  avatar: string; // 默认头像（前端根据需要填充）
-  username: string; // 作者名称（前端根据需要填充）
-}
 
-const fetchNotes = async (noteType: string | null = null) => {
+
+// 判断用户是否已登录
+const isLoggedIn = (): boolean => {
+  const userInfo = userStore.getUserInfo();  // 获取用户信息
+  const rawUserInfo = toRaw(userInfo);  // 获取原始对象
+  return rawUserInfo != null && rawUserInfo.uid != null;  // 判断 uid 是否存在
+};
+
+// 点赞收藏评论图标
+const handleAction = (action: string) => {
+  if (!isLoggedIn()) {
+    //login();  // 用户未登录，弹出登录框
+  } else {
+    // 用户已登录，执行相关操作
+    if (action === 'like') {
+      console.log('用户点赞');
+      // 处理点赞操作
+    } else if (action === 'collection') {
+      console.log('用户收藏');
+      // 处理收藏操作
+    } else if (action === 'comment') {
+      console.log('用户评论');
+      // 处理评论操作
+    }
+  }
+};
+
+// 评论框
+const handleInputClick = () => {
+  if (!isLoggedIn()) {
+    login();  // 用户未登录时显示登录弹窗
+  } else {
+    console.log('用户可以评论');
+    // 执行评论相关的操作
+  }
+};
+
+
+import type {Note} from "@/type/note";
+
+const fetchNotes = async (noteType: string | null = null, userId: string) => {
   isLoading.value = true;
+
+  if (!userId) {
+    console.error('缺少 userId 参数');
+    isLoading.value = false;
+    return;
+  }
+
   try {
+    const num = 10;  // 请求的条数，默认为 10
+    const cursor = ''; // 游标为空，或者你可以传递一个有效的时间戳
+
     const response = await axios.get('/api/note/getUserFoNotes', {
       params: {
-        note_type: noteType || undefined,  // 如果为 null，传递 undefined
-        cursor: undefined,  // 如果 cursor 不需要，传递 undefined
-        num: 10,
+        user_id: userId, // 用户id
+        num: num,         // 请求的条数
+        cursor: '',   // 游标为空
       },
     });
 
-
-
-    // 打印后端返回的数据以调试
-    console.log('Response Data:', response.data);
-
-    // 检查返回的数据是否包含 notes 字段
     if (response.data && response.data.data && response.data.data.notes) {
-      const notes = response.data.data.notes;
+      let notes = response.data.data.notes;
 
-      // 通过 creatorId 填充 username 和 avatar
-      for (let note of notes) {
-        const username = await fetchUsernameById(note.note_creator_id);
-        note.username = username || '未知用户'; // 如果用户名获取失败，使用 '未知用户'
+      if (notes === null) {
+        noteList.value = [];
+        console.warn("后端返回了空的笔记列表（null），已转换为空数组");
+      } else {
+        // 如果有分类过滤（即 noteType 不是 null），根据分类进行过滤
+        if (noteType) {
+          notes = notes.filter((note: any) => note.note_type === noteType);
+        }
 
-        const avatar = await fetchAvatarById(note.note_creator_id);
-        note.avatar = avatar || '默认头像路径'; // 如果头像获取失败，使用 '默认头像路径'
+        // 填充用户名和头像
+        for (let note of notes) {
+          const username = await fetchUsernameById(note.note_creator_id);
+          note.username = username || '未知用户';
+
+          const avatar = await fetchAvatarById(note.note_creator_id);
+          note.avatar = avatar || default_avatar;
+        }
+
+        // 更新笔记列表
+        noteList.value = notes.map((note: any) => ({
+          note_id: note.note_id,
+          title: note.note_title,
+          content: note.note_content,
+          viewCount: note.view_count,
+          tag: note.note_tag_list || [],
+          noteCover: (() => {
+            if (typeof note.note_urls === "string") {
+              try {
+                const parsedUrls = JSON.parse(note.note_urls);
+                if (Array.isArray(parsedUrls)) {
+                  return parsedUrls;
+                }
+              } catch (error) {
+                console.error("note_urls 字段解析失败：", error);
+              }
+              return [];
+            } else if (Array.isArray(note.note_urls)) {
+              return note.note_urls;
+            }
+            return [];
+          })(),
+          creatorId: note.note_creator_id,
+          datetime: note.note_update_time,
+          likeCount: note.like_counts,
+          collection: note.collect_counts,
+          username: note.username,
+          avatar: note.avatar,
+          noteType: note.note_type,
+        }));
       }
-
-      // 更新 noteList
-      noteList.value = notes.map((note: any) => ({
-        note_id: note.note_id,
-        title: note.note_title,
-        content: note.note_content,
-        viewCount: note.view_count,
-        tag: note.note_tag_list || [],  // 标签列表
-        noteCover: typeof note.note_urls === "string" ? note.note_urls.split(",") : note.note_urls || [],
-        creatorId: note.note_creator_id,  // 作者ID
-        datetime: note.note_update_time,  // 更新时间
-        likeCount: note.like_counts,  // 点赞数
-        collection: note.collect_counts,  // 收藏数
-        username: note.username, // 添加用户名
-        avatar: note.avatar,  // 添加头像
-      }));
     } else {
       console.error('后端返回数据格式错误：缺少 notes 字段');
+      noteList.value = [];
     }
     isLoading.value = false;
   } catch (error) {
     console.error('获取笔记数据失败', error);
     isLoading.value = false;
+    noteList.value = [];
   }
 };
+
+
+
 
 
 // 获取用户名的函数
@@ -300,41 +394,69 @@ const fetchAvatarById = async (userId: number): Promise<string | null> => {
     if (response.data && response.data.avatar) {
       return response.data.avatar; // 返回头像URL
     } else {
-      console.error('获取头像失败', response.data.error || '未知错误');
+      //console.error('获取头像失败', response.data.error || '未知错误');
       return null;
     }
   } catch (error) {
-    console.error('请求用户头像失败', error);
+    //console.error('请求用户头像失败', error);
     return null;
   }
 };
 
 
-// 切换分类
-const getNoteListByCategory = (id: string) => {
-  categoryClass.value = id;
-  noteList.value = []; // 清空当前显示的笔记列表
-  fetchNotes(id === '0' ? null : id);
+const getNoteList = () => {
+  const userInfo = userStore.getUserInfo();  // 每次调用时重新获取用户信息
+  const userId = userInfo?.uid; // 确保 userId 存在
+
+  if (!userId) {
+    console.error('缺少 userId 参数');
+    return;
+  }
+
+  categoryClass.value = '0';
+  fetchNotes(null, userId);  // 将 userId 传递给 fetchNotes
 };
 
+const getNoteListByCategory = (id: string) => {
+  const userInfo = userStore.getUserInfo();  // 每次调用时重新获取用户信息
+  const userId = userInfo?.uid;  // 获取 userId
 
+  if (!userId) {
+    console.error('缺少 userId 参数');
+    return;
+  }
 
-// 推荐
-const getNoteList = () => {
-  categoryClass.value = '0';
-  fetchNotes(null);
+  categoryClass.value = id;
+  noteList.value = []; // 清空当前显示的笔记列表
+  fetchNotes(id === '0' ? null : id, userId);  // 将 userId 传递给 fetchNotes
 };
 
 
 // 获取分类数据
 const fetchCategories = () => {
-  categoryList.value = [
-    { id: "1", title: "旅行" },
-    { id: "2", title: "返乡" },
-    { id: "3", title: "外出活动" }
-  ];
+  categoryList.value;
 };
 
+const isVideo = (url: string): boolean => {
+  // 判断文件格式是否为视频
+  const videoFormats = ['.mp4', '.mov', '.avi', '.mkv'];
+  return videoFormats.some(format => url.toLowerCase().endsWith(format));
+};
+
+
+
+
+const formatDate = (timestamp: number): string => {
+  const date = new Date(timestamp * 1000); // 转换为 JavaScript Date 对象
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0'); // 获取月份并补充零
+  const day = String(date.getDate()).padStart(2, '0'); // 获取日期并补充零
+  const hours = String(date.getHours()).padStart(2, '0'); // 获取小时并补充零
+  const minutes = String(date.getMinutes()).padStart(2, '0'); // 获取分钟并补充零
+  const seconds = String(date.getSeconds()).padStart(2, '0'); // 获取秒并补充零
+
+  return `${year}年${month}月${day}日 ${hours}:${minutes}:${seconds}`;
+};
 
 
 // 显示登录弹窗的函数
@@ -366,22 +488,17 @@ const closeModal = () => {
 
 
 // 刷新按钮点击事件
-const refreshContent = () => {
+const refreshContent = async () => {
   isLoading.value = true;
-  setTimeout(() => {
-    //noteList.value = shuffleArray(getFilteredNoteList()); // 模拟异步刷新
-    isLoading.value = false; // 关闭加载状态
-  }, 500); // 设置加载时间
-};
 
-// 刷新函数
-const shuffleArray = (array: any[]) => {
-  const shuffled = [...array];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  try {
+    // 刷新时，根据当前分类重新获取数据
+    await fetchNotes(categoryClass.value === '0' ? null : categoryClass.value);
+  } catch (error) {
+    console.error('刷新数据失败', error);
+  } finally {
+    isLoading.value = false; // 关闭加载状态
   }
-  return shuffled;
 };
 
 
@@ -768,7 +885,7 @@ const closeFullscreen = () => {
 
   video {
     max-width: 100%;
-    max-height: 100%;
+    max-height: 640px;
     object-fit: contain;
     border-radius: 8px;
   }
@@ -830,6 +947,7 @@ const closeFullscreen = () => {
     color: #003366;
     //font-weight: bold;
     font-size: 16px;
+    cursor: pointer;
   }
 }
 

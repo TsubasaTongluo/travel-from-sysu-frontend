@@ -2,16 +2,10 @@
   <div class="upload-container">
     <!-- 顶部红色按钮 -->
     <div class="upload-options">
-      <button
-        :class="{ active: isImageUpload }"
-        @click="toggleUploadType(true)"
-      >
+      <button :class="{ active: isImageUpload }" @click="toggleUploadType(true)">
         上传图片
       </button>
-      <button
-        :class="{ active: !isImageUpload }"
-        @click="toggleUploadType(false)"
-      >
+      <button :class="{ active: !isImageUpload }" @click="toggleUploadType(false)">
         上传视频
       </button>
     </div>
@@ -22,12 +16,11 @@
       @dragover.prevent
       @drop.prevent="handleDrop"
     >
-      <p v-if="!files.length">
+      <p v-if="!file">
         {{ isImageUpload ? "拖拽上传图片或点击选择图片" : "拖拽上传视频或点击选择视频" }}
       </p>
       <input
         type="file"
-        multiple
         :accept="isImageUpload ? 'image/*' : 'video/*'"
         class="hidden-input"
         ref="fileInput"
@@ -36,35 +29,15 @@
       <button class="upload-button" @click="openFileDialog">选择文件</button>
 
       <!-- 文件预览 -->
-      <div v-if="files.length" class="preview-list">
-        <div
-          v-for="(file, index) in files"
-          :key="index"
-          class="preview-item"
-        >
-          <img
-            v-if="isImageUpload && file.url"
-            :src="file.url"
-            alt="预览"
-          />
-          <video
-            v-if="!isImageUpload && file.url"
-            :src="file.url"
-            controls
-          ></video>
-        </div>
+      <div v-if="file" class="preview-item">
+        <img v-if="isImageUpload && file.url" :src="file.url" alt="预览" />
+        <video v-if="!isImageUpload && file.url" :src="file.url" controls></video>
       </div>
     </div>
 
-    <!-- 右下角按钮 -->
-    <div class="next-step">
-      <button
-        :class="{ disabled: !files.length }"
-        :disabled="!files.length"
-        @click="goNextStep"
-      >
-        下一步
-      </button>
+    <!-- 灰色蒙版加载 -->
+    <div v-if="isUploading" class="loading-overlay">
+      <div class="spinner"></div>
     </div>
   </div>
 </template>
@@ -72,16 +45,18 @@
 <script lang="ts" setup>
 import { ref } from "vue";
 import { useRouter } from "vue-router";
+import axios from "axios";
 
 const router = useRouter();
 
 const isImageUpload = ref(true); // 默认是图片上传
-const files = ref<{ file: File; url: string }[]>([]); // 上传的文件数组
+const file = ref<{ file: File; url: string } | null>(null); // 上传的单个文件
+const isUploading = ref(false); // 是否正在上传
 
 // 切换上传类型
 const toggleUploadType = (isImage: boolean) => {
   isImageUpload.value = isImage;
-  files.value = []; // 清空之前的文件
+  file.value = null; // 清空之前的文件
 };
 
 // 打开文件选择框
@@ -93,26 +68,22 @@ const openFileDialog = () => {
 // 处理文件选择
 const handleFileSelect = (event: Event) => {
   const input = event.target as HTMLInputElement;
-  if (!input.files) return;
+  if (!input.files || input.files.length === 0) return;
 
-  Array.from(input.files).forEach((file) => {
-    addFile(file);
-  });
+  addFile(input.files[0]);
 };
 
 // 处理拖拽上传
 const handleDrop = (event: DragEvent) => {
   const droppedFiles = event.dataTransfer?.files;
-  if (!droppedFiles) return;
+  if (!droppedFiles || droppedFiles.length === 0) return;
 
-  Array.from(droppedFiles).forEach((file) => {
-    addFile(file);
-  });
+  addFile(droppedFiles[0]);
 };
 
-// 添加文件到列表
-const addFile = (file: File) => {
-  const fileType = file.type;
+// 添加文件到预览
+const addFile = (selectedFile: File) => {
+  const fileType = selectedFile.type;
   const isValid =
     (isImageUpload.value && fileType.startsWith("image/")) ||
     (!isImageUpload.value && fileType.startsWith("video/"));
@@ -122,29 +93,51 @@ const addFile = (file: File) => {
     return;
   }
 
-  // 将文件添加到预览列表
-  files.value.push({ file, url: URL.createObjectURL(file) });
+  // 限制只能选择一个文件
+  file.value = { file: selectedFile, url: URL.createObjectURL(selectedFile) };
+
+  uploadFile();
 };
 
-// 下一步按钮事件
-const goNextStep = () => {
-  if (!files.value.length) return;
+// 上传文件到服务器
+const uploadFile = async () => {
+  if (!file.value) return;
 
-  // 将文件信息传递到下一个页面
-  const fileData = files.value.map((file) => ({
-    name: file.file.name,
-    type: file.file.type,
-    url: file.url,
-  }));
+  const endpoint = isImageUpload.value ? "/api/note/uploadNotePic" : "/api/note/uploadNoteVideo";
 
-  // 如果需要将文件作为 `File` 对象传递，可以直接将 `file` 本身传递
-  router.push({
-    name: "publishNext",
-    query: { files: JSON.stringify(fileData) },
-  });
+  const formData = new FormData();
+  formData.append("file", file.value.file);
+
+  isUploading.value = true; // 显示加载蒙版
+
+  try {
+    const response = await axios.post(endpoint, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    if (response.status === 200 && response.data.status === "成功") {
+      alert("上传成功！");
+      // 跳转到 pushNext 界面
+      router.push({
+        name: "publishNext",
+        query: { 
+          fileUrl: response.data.url,
+          type: isImageUpload.value ? "image" : "video",
+         },
+      });
+    } else {
+      throw new Error(response.data.error || "上传失败");
+    }
+  } catch (error) {
+    console.error("文件上传失败：", error);
+    alert("上传失败，请重试！");
+    // 刷新页面
+    window.location.reload();
+  } finally {
+    isUploading.value = false; // 隐藏加载蒙版
+  }
 };
 </script>
-
 
 <style scoped>
 .upload-container {
@@ -204,16 +197,10 @@ const goNextStep = () => {
   display: none;
 }
 
-.preview-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 20px;
-}
-
 .preview-item {
-  width: 100px;
-  height: 100px;
+  margin-top: 20px;
+  width: 200px;
+  height: 200px;
   overflow: hidden;
   border: 1px solid #ddd;
   border-radius: 4px;
@@ -228,26 +215,35 @@ const goNextStep = () => {
   max-height: 100%;
 }
 
-.next-step {
-  margin-top: 20px;
+/* 灰色蒙版加载 */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
 }
 
-.next-step button {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 5px;
-  font-size: 16px;
-  cursor: pointer;
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid #f3f3f3;
+  border-top: 5px solid #f44336;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
 }
 
-.next-step button.disabled {
-  background-color: #ddd;
-  color: #999;
-  cursor: not-allowed;
-}
-
-.next-step button:not(.disabled) {
-  background-color: #f44336;
-  color: white;
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 </style>
