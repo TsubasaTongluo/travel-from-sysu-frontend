@@ -65,7 +65,10 @@
               </a>
               <span class="like-wrapper like-active">
                 <i class="iconfont icon-follow" style="width: 1em; height: 1em"></i>
-                <img src="/icons/like.png" class="like-icon" @click="handleAction('like')" />
+                <img
+                    :src="item.isLike ? '/icons/like-filled.png' : '/icons/like.png'"
+                    class="like-icon"
+                    @click="item.isLike ? unlike_note(item) : like_note(item)" />
                 <span class="count">{{ item.likeCount }}</span>
               </span>
             </div>
@@ -146,26 +149,22 @@
             />
             <!-- 点赞收藏评论按钮 -->
             <div class="action-buttons">
-              <span
-                  class="action-button"
-                  @click="handleAction('like')"
-              >
-                <img src="/icons/like.png" class="icons" />
+              <span class="action-button" @click="selectedNote.isLike ? unlike_note(selectedNote) : like_note(selectedNote)" >
+                <img
+                    :src="selectedNote?.isLike ? '/icons/like-filled.png' : '/icons/like.png'"
+                    class="icons" />
                 <i class="iconfont icon-like"></i> {{ selectedNote.likeCount }}
               </span>
-              <span
-                  class="action-button"
-                  @click="handleAction('collection')"
-              >
-                <img src="/icons/collection.png" class="icons" />
+              <span class="action-button" @click="selectedNote?.isCollection ? uncollect_note(selectedNote) : collect_note(selectedNote)">
+                <img
+                    :src="selectedNote?.isCollection ? '/icons/collection-filled.png' : '/icons/collection.png'"
+                    class="icons"
+                />
                 <i class="iconfont icon-collection"></i> {{ selectedNote.collection }}
               </span>
-              <span
-                  class="action-button"
-                  @click="handleAction('comment')"
-              >
-                <img src="/icons/comment.png" class="icons" />
-                <i class="iconfont icon-comment"></i> {{ selectedNote.comment }}
+              <span class="action-button">
+                <img src="/icons/comment.png" class="icons"/>
+                <i class="iconfont icon-comment"></i> {{ selectedNote.comment_counts }}
               </span>
             </div>
           </div>
@@ -195,7 +194,7 @@ import default_videoCover from "@/assets/default_videoCover.png";
 import { useUserStore } from "@/store/user"; // 导入 Pinia store
 
 const userStore = useUserStore();
-const userId = userStore.getUserInfo()?.id;  // 假设当前用户信息中有 id 字段
+const userId = userStore.getUserInfo()?.id;
 
 
 const noteList = ref<Note[]>([]); // 从后端获取的笔记数据
@@ -223,17 +222,21 @@ const isFullscreen = ref(false);  // 控制全屏图片弹窗显示
 
 import { toRaw } from 'vue';  // 获取用户原始信息以判断是否登录
 
-// 初始化加载数据
+const userInfo = ref<any>(null);
+
 onMounted(() => {
-  const userInfo = userStore.getUserInfo();
-  if (userInfo && userInfo.username) {
-    console.log('当前用户信息:', userInfo);
-    fetchNotes(null, userInfo.username);  // 确保用户名存在并传递正确的用户信息
+  if (!isLoggedIn()) {
+    login()  // 如果未登录，显示登录弹窗
   } else {
-    console.error("用户未登录，无法获取笔记！");
+    const userInfo = userStore.getUserInfo();
+    if (userInfo && userInfo.username && userInfo.uid) {
+      console.log('当前用户信息:', userInfo);
+      fetchNotes(null, userInfo.uid);  // 获取当前用户的笔记
+    } else {
+      console.error("用户未登录，无法获取笔记！");
+    }
   }
 });
-
 
 
 // 判断用户是否已登录
@@ -243,29 +246,127 @@ const isLoggedIn = (): boolean => {
   return rawUserInfo != null && rawUserInfo.uid != null;  // 判断 uid 是否存在
 };
 
-// 点赞收藏评论图标
-const handleAction = (action: string) => {
-  if (!isLoggedIn()) {
-    //login();  // 用户未登录，弹出登录框
-  } else {
-    // 用户已登录，执行相关操作
-    if (action === 'like') {
-      console.log('用户点赞');
-      // 处理点赞操作
-    } else if (action === 'collection') {
-      console.log('用户收藏');
-      // 处理收藏操作
-    } else if (action === 'comment') {
-      console.log('用户评论');
-      // 处理评论操作
+// 点赞收藏评论
+const unlike_note = async (note:Note) => {
+  // todo: unlike接口
+  //console.log("unlike!");
+  try {
+    const res = await unlike(note.note_id);
+    // console.log("点赞结果",res);
+    if(res.data.code===200){
+      note.isLike=false;
+      note.likeCount-=1;
+      // ElMessage.success("取消点赞成功");
+    }else{
+      console.log("取消点赞失败：",res.data.error);
     }
+  }catch(error){
+    console.log("取消点赞失败：",error);
+  }
+}
+
+const like_note = async (note:Note) =>{
+  // todo: like接口
+  //console.log("like!");
+  try {
+    const res = await like(note.note_id);
+    // console.log("点赞结果",res);
+    if(res.data.code===200){
+      note.isLike=true;
+      note.likeCount+=1;
+      // ElMessage.success("点赞成功");
+    }else{
+      console.log("点赞失败：",res.data.error);
+    }
+  }catch(error){
+    console.log("点赞失败：",error);
   }
 };
+
+const collect_note = async (note:Note) =>{
+  // todo: collect 接口
+  //console.log("collect!");
+  try {
+    const res = await collect(note.note_id);
+    // console.log("点赞结果",res);
+    if(res.data.code===200){
+      note.isCollection=true;
+      note.collection+=1;
+      // ElMessage.success("收藏成功");
+    }else{
+      console.log("收藏失败：",res.data.error);
+    }
+  }catch(error){
+    console.log("收藏失败：",error);
+  }
+};
+
+const uncollect_note = async (note:Note) =>{
+  // todo: uncollect 接口
+  //console.log("uncollect!");
+  try {
+    const res = await uncollect(note.note_id);
+    // console.log("点赞结果",res);
+    if(res.data.code===200){
+      note.isCollection=false;
+      note.collection-=1;
+      // ElMessage.success("取消收藏成功");
+    }else{
+      console.log("取消收藏失败：",res.data.error);
+    }
+  }catch(error){
+    console.log("取消收藏失败：",error);
+  }
+};
+
+async function like(nid:number) {
+  return await axios({
+    url:"/api/note/like",
+    method: "POST",
+    data: {
+      uid: userStore.getUserInfo()?.uid,
+      note_id: nid,
+    },
+  });
+}
+
+async function unlike(nid:number) {
+  return await axios({
+    url:"/api/note/dislike",
+    method: "POST",
+    data: {
+      uid: userStore.getUserInfo()?.uid,
+      note_id: nid,
+    },
+  });
+}
+
+async function collect(nid:number) {
+  return await axios({
+    url:"/api/note/collect",
+    method: "POST",
+    data: {
+      uid: userStore.getUserInfo()?.uid,
+      note_id: nid,
+    },
+  });
+}
+
+async function uncollect(nid:number) {
+  return await axios({
+    url:"/api/note/uncollect",
+    method: "POST",
+    data: {
+      uid: userStore.getUserInfo()?.uid,
+      note_id: nid,
+    },
+  });
+}
 
 // 评论框
 const handleInputClick = () => {
   if (!isLoggedIn()) {
-    login();  // 用户未登录时显示登录弹窗
+    //login();  // 用户未登录时显示登录弹窗
   } else {
     console.log('用户可以评论');
     // 执行评论相关的操作
@@ -278,11 +379,6 @@ import type {Note} from "@/type/note";
 const fetchNotes = async (noteType: string | null = null, userId: string) => {
   isLoading.value = true;
 
-  if (!userId) {
-    console.error('缺少 userId 参数');
-    isLoading.value = false;
-    return;
-  }
 
   try {
     const num = 10;  // 请求的条数，默认为 10
@@ -303,7 +399,7 @@ const fetchNotes = async (noteType: string | null = null, userId: string) => {
         noteList.value = [];
         console.warn("后端返回了空的笔记列表（null），已转换为空数组");
       } else {
-        // 如果有分类过滤（即 noteType 不是 null），根据分类进行过滤
+        // 分类过滤
         if (noteType) {
           notes = notes.filter((note: any) => note.note_type === noteType);
         }
@@ -344,9 +440,12 @@ const fetchNotes = async (noteType: string | null = null, userId: string) => {
           datetime: note.note_update_time,
           likeCount: note.like_counts,
           collection: note.collect_counts,
+          comment_counts: note.comment_counts,
           username: note.username,
           avatar: note.avatar,
           noteType: note.note_type,
+          isLike: note.status.is_like,  // 后端返回这个字段来表示是否已点赞
+          isCollection: note.status.is_collect,  // 后端返回这个字段来表示是否已收藏
         }));
       }
     } else {
@@ -458,13 +557,12 @@ const formatDate = (timestamp: number): string => {
   return `${year}年${month}月${day}日 ${hours}:${minutes}:${seconds}`;
 };
 
-
 // 显示登录弹窗的函数
 const login = () => {
   loginShow.value = true;
 };
 
-// 关闭登录弹窗的函数
+// 关闭登录弹窗
 const close = () => {
   loginShow.value = false;
 };
@@ -492,8 +590,17 @@ const refreshContent = async () => {
   isLoading.value = true;
 
   try {
-    // 刷新时，根据当前分类重新获取数据
-    await fetchNotes(categoryClass.value === '0' ? null : categoryClass.value);
+    // 获取当前的 userId
+    const userInfo = userStore.getUserInfo();
+    const userId = userInfo?.uid;
+
+    if (!userId) {
+      console.error('缺少 userId 参数');
+      return;
+    }
+
+    // 刷新时，根据当前分类和 userId 获取数据
+    await fetchNotes(categoryClass.value === '0' ? null : categoryClass.value, userId);
   } catch (error) {
     console.error('刷新数据失败', error);
   } finally {

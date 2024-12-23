@@ -207,7 +207,7 @@ const rules = reactive<FormRules<FormData>>({
   ],
   newPassword: [
     { required: true, message: "请输入新密码", trigger: "blur" },
-    { min: 6, message: "密码长度不能小于6个字符", trigger: "blur" },
+    // { min: 6, message: "密码长度不能小于6个字符", trigger: "blur" },
   ],
 });
 
@@ -290,8 +290,8 @@ const updateInfo = async (formName:any) => {
         userstore.setUserInfo(updatedUser);  // 存储更新后的用户信息
       }
 
-      alert('信息修改成功!');
-      // setTimeout(() => router.push('/dashboard'), 2000);
+      alert('信息修改成功!1秒后跳转至个人主页');
+      setTimeout(() => router.push('/userInfo'), 1000);
     } else {
       alert('修改失败');
     }
@@ -335,9 +335,9 @@ const updatePassword = async (formName:FormInstance | undefined) => {
       }
     });
     if (res.data.code === 200) {
-      alert('密码修改成功！');
+      alert('密码修改成功！1秒后跳转至个人主页');
       userstore.setPwd(formData.newPassword);
-      // setTimeout(() => router.push('/dashboard'), 2000);
+      setTimeout(() => router.push('/userInfo'), 1000);
     } else if (res.data.code === 401) {
       // 如果是原密码错误
       alert(res.data.error);

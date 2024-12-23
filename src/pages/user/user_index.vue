@@ -52,7 +52,7 @@
             <el-button type="danger" round>登录</el-button>
           </li>
           <li v-else :class="{ 'active-channel': isActiveRoute('/userInfo') }" @click="navigateTo('/userInfo')">
-            <el-avatar :src="userInfo.avatar" :size="22" />
+            <img :class="'img_avatar'" :src="userInfo.avatar" alt="头像" />
             <span class="channel">我</span>
           </li>
         </ul>
@@ -175,8 +175,28 @@ const router = useRouter();
 const route = useRoute();
 const padShow = ref(false);
 const userStore = useUserStore();
-const userInfo = ref<any>({});
-userInfo.value = userStore.getUserInfo();
+
+const userInfo = ref<any>(null);  // 初始值为null，表示未登录
+
+// 在获取用户信息时，先检查是否已登录
+const getUserInfo = () => {
+  const user = userStore.getUserInfo();
+  if (user) {
+    userInfo.value = user;
+  } else {
+    userInfo.value = null;  // 如果没有登录，设置为null
+  }
+};
+
+getUserInfo();  // 调用此函数以获取用户信息
+
+// 在访问 userId 时，检查 userInfo 是否有效
+let userId: string | undefined = undefined;
+if (userInfo.value) {
+  userId = userInfo.value.id;
+}
+
+
 
 // 显示登录弹窗的函数
 const login = () => {
@@ -448,6 +468,14 @@ a {
             color: #fff;
           }
         }
+
+        .img_avatar {
+          width: 22px;
+          height: 22px;
+          border-radius: 50%;
+        }
+
+
 
         .channel {
           font-size: 16px;
