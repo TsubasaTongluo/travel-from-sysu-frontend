@@ -26,27 +26,30 @@
 
     <div class="feeds-container" :class="{ 'loading': isLoading }">
       <div class="grid-container">
-        <div
-            class="card"
-            v-for="item in noteList"
-            :key="item.id"
-            style="max-width: 240px"
-        >
+        <div class="card" v-for="item in noteList" :key="item.id" style="max-width: 240px">
           <div class="image-wrapper">
+            <!-- 如果是视频类型，显示视频封面 -->
             <img
-                :src="item.noteCover[0]"
-                :style="{
-                maxWidth: '210px',
-                borderRadius: '8px',
-              }"
+                v-if="isVideo(item.noteCover[0])"
+                :src=default_videoCover
+                :style="{ maxWidth: '210px', borderRadius: '8px' }"
                 fit="contain"
                 @click="toMain(item)"
             />
+            <div v-if="isVideo(item.noteCover[0])" class="video-icon">
+              <img src="/icons/video-icon.png" />
+            </div>
 
-<!--            <div v-if="item.noteType === 'video'" class="video-icon">-->
-<!--              <img src="/icons/video-icon.png" />-->
-<!--            </div>-->
+            <!-- 如果是图片类型，正常显示图片 -->
+            <img
+                v-else
+                :src="item.noteCover[0]"
+                :style="{ maxWidth: '210px', borderRadius: '8px' }"
+                fit="contain"
+                @click="toMain(item)"
+            />
           </div>
+
 
           <!-- 内容框 -->
           <div class="footer">
@@ -60,7 +63,7 @@
               </a>
               <span class="like-wrapper like-active">
                 <i class="iconfont icon-follow" style="width: 1em; height: 1em"></i>
-                <img src="/icons/like.png" class="like-icon" @click="login" />
+                <img src="/icons/like.png" class="like-icon" @click="handleAction('like')" />
                 <span class="count">{{ item.likeCount }}</span>
               </span>
             </div>
@@ -73,15 +76,24 @@
     <div v-if="isModalVisible" class="modal" @click="closeModal">
       <div class="modal-content" @click.stop>
 
-        <!-- 左侧图片或视频 -->
+        <!-- 弹窗左侧图片或视频 -->
         <div class="modal-image">
-          <!-- 左侧当前图片 -->
+          <!-- 如果是视频格式 -->
+          <div v-if="isVideo(selectedNote.noteCover[currentImageIndex])">
+            <video controls>
+              <source :src="selectedNote.noteCover[currentImageIndex]" type="video/mp4" />
+            </video>
+          </div>
+
+          <!-- 如果是图片格式 -->
           <img
+              v-else
               :src="selectedNote.noteCover[currentImageIndex]"
               @click="toggleFullscreenImage"
           />
 
-          <div  v-if="selectedNote.noteCover.length > 1" class="image-navigation">
+
+        <div v-if="selectedNote.noteCover.length > 1" class="image-navigation">
             <!-- 显示当前图片页数 -->
             <span class="image-index">{{ currentImageIndex + 1 }}/{{ selectedNote.noteCover.length }}</span>
             <!-- 图片切换按钮 -->
@@ -90,12 +102,6 @@
           </div>
         </div>
 
-<!--        <div class="modal-image" v-if="selectedNote.noteType === 'video'">-->
-<!--          &lt;!&ndash; 视频播放器 &ndash;&gt;-->
-<!--          <video v-if="selectedNote.noteType === 'video'" controls>-->
-<!--            <source :src="selectedNote.video" type="video/mp4" />-->
-<!--          </video>-->
-<!--        </div>-->
         <!-- 右侧文字 -->
         <div class="modal-text">
           <!-- 发布者信息 -->
@@ -111,16 +117,17 @@
             <!-- tag -->
             <span class="modal-tag" v-if="selectedNote.tag.length > 0">
               <span
-                  v-for="(tag, index) in selectedNote.tag"
+                  v-for="(tag, index) in selectedNote.tag.split(',')"
                   :key="index"
               >
-                #{{ tag }}
+                #{{ tag.trim() }}
               </span>
             </span>
           </p>
 
+
           <!-- 修改时间 -->
-          <p class="modal-time">{{ selectedNote.datetime }}</p>
+          <p class="modal-time">{{ formatDate(selectedNote.datetime) }}</p>
           <!-- 分界线 -->
           <hr class="divider" />
           <!-- 评论区域 -->
@@ -128,20 +135,34 @@
           <!-- 底部操作栏 -->
           <div class="modal-footer">
             <!-- 输入栏 -->
-            <input type="text" class="comment-input" readonly
-                   @click="login" placeholder="登录后评论" />
+            <input
+                type="text"
+                class="comment-input"
+                :readonly="!isLoggedIn()"
+                @click="handleInputClick"
+                :placeholder="isLoggedIn() ? '说点什么……' : '登录后评论'"
+            />
             <!-- 点赞收藏评论按钮 -->
             <div class="action-buttons">
-              <span class="action-button" @click="login">
-                <img src="/icons/like.png" class="icons"/>
+              <span
+                class="action-button"
+                @click="handleAction('like')"
+              >
+                <img src="/icons/like.png" class="icons" />
                 <i class="iconfont icon-like"></i> {{ selectedNote.likeCount }}
               </span>
-              <span class="action-button" @click="login">
-                <img src="/icons/collection.png" class="icons"/>
+              <span
+                  class="action-button"
+                  @click="handleAction('collection')"
+              >
+                <img src="/icons/collection.png" class="icons" />
                 <i class="iconfont icon-collection"></i> {{ selectedNote.collection }}
               </span>
-              <span class="action-button" @click="login">
-                <img src="/icons/comment.png" class="icons"/>
+              <span
+                  class="action-button"
+                  @click="handleAction('comment')"
+              >
+                <img src="/icons/comment.png" class="icons" />
                 <i class="iconfont icon-comment"></i> {{ selectedNote.comment }}
               </span>
             </div>
@@ -166,25 +187,29 @@
 import { ref, onMounted } from "vue";
 import Login from "@/pages/user/user_login.vue";
 import axios from 'axios';
+import default_avatar from "@/assets/logo.png";
+import type {Note} from "@/type/note";
+import default_videoCover from "@/assets/default_videoCover.png";
+import { useUserStore } from "@/store/user"; // 导入 Pinia store
+import { toRaw } from 'vue';  // 获取用户原始信息以判断是否登录
+const userStore = useUserStore();
+const userId = userStore.getUserInfo()?.id;  // 假设当前用户信息中有 id 字段
 
 
 const noteList = ref<Note[]>([]); // 从后端获取的笔记数据
 const categoryClass = ref("0"); // 当前分类，"0" 表示推荐
 
 const categoryList = ref([
-  { id: "1", title: "旅行" },
-  { id: "2", title: "返乡" },
-  { id: "3", title: "外出活动" }
+  { id: "旅行", title: "旅行" },
+  { id: "外出", title: "外出" },
+  { id: "返乡", title: "返乡" }
 ]);
 
 const isLoading = ref(false); // 加载状态
 
 const isModalVisible = ref(false);
 
-
-
 const selectedNote = ref<Note | null>(null); // 单一笔记对象或空值
-
 
 const loginShow = ref(false); // 控制弹窗状态
 
@@ -194,27 +219,46 @@ const currentImageIndex = ref(0);  // 当前显示的图片索引，用于多图
 
 const isFullscreen = ref(false);  // 控制全屏图片弹窗显示
 
-// 加载
 // 初始化加载数据
 onMounted(() => {
   fetchNotes(); // 默认加载推荐
 });
 
-interface Note {
-  note_id: number; // 后端的note_id
-  title: string; // 后端的note_title
-  content: string; // 后端的note_content
-  viewCount: number; // 后端的view_count
-  tag: string[]; // 后端的note_tag_list
-  noteType?: string; // 后端的note_type
-  noteCover: string[]; // 后端的note_urls
-  creatorId: number; // 后端的note_creator_id
-  datetime: string; // 后端的note_update_time
-  likeCount: number; // 后端的like_counts
-  collection: number; // 后端的collect_counts
-  avatar: string; // 默认头像（前端根据需要填充）
-  username: string; // 作者名称（前端根据需要填充）
-}
+// 判断用户是否已登录
+const isLoggedIn = (): boolean => {
+  const userInfo = userStore.getUserInfo();  // 获取用户信息
+  const rawUserInfo = toRaw(userInfo);  // 获取原始对象
+  return rawUserInfo != null && rawUserInfo.uid != null;  // 判断 uid 是否存在
+};
+
+// 点赞收藏评论图标
+const handleAction = (action: string) => {
+  if (!isLoggedIn()) {
+    login();  // 用户未登录，弹出登录框
+  } else {
+    // 用户已登录，执行相关操作
+    if (action === 'like') {
+      console.log('用户点赞');
+      // 处理点赞操作
+    } else if (action === 'collection') {
+      console.log('用户收藏');
+      // 处理收藏操作
+    } else if (action === 'comment') {
+      console.log('用户评论');
+      // 处理评论操作
+    }
+  }
+};
+
+// 评论框
+const handleInputClick = () => {
+  if (!isLoggedIn()) {
+    login();  // 用户未登录时显示登录弹窗
+  } else {
+    console.log('用户可以评论');
+    // 执行评论相关的操作
+  }
+};
 
 const fetchNotes = async (noteType: string | null = null) => {
   isLoading.value = true;
@@ -240,7 +284,7 @@ const fetchNotes = async (noteType: string | null = null) => {
         note.username = username || '未知用户'; // 如果用户名获取失败，使用 '未知用户'
 
         const avatar = await fetchAvatarById(note.note_creator_id);
-        note.avatar = avatar || '默认头像路径'; // 如果头像获取失败，使用 '默认头像路径'
+        note.avatar = avatar || default_avatar; // 如果头像获取失败，使用 '默认头像路径'
       }
 
       // 更新 noteList
@@ -314,11 +358,11 @@ const fetchAvatarById = async (userId: number): Promise<string | null> => {
     if (response.data && response.data.avatar) {
       return response.data.avatar; // 返回头像URL
     } else {
-      console.error('获取头像失败', response.data.error || '未知错误');
+      //console.error('获取头像失败', response.data.error || '未知错误');
       return null;
     }
   } catch (error) {
-    console.error('请求用户头像失败', error);
+    //console.error('请求用户头像失败', error);
     return null;
   }
 };
@@ -342,13 +386,26 @@ const getNoteList = () => {
 
 // 获取分类数据
 const fetchCategories = () => {
-  categoryList.value = [
-    { id: "1", title: "旅行" },
-    { id: "2", title: "返乡" },
-    { id: "3", title: "外出活动" }
-  ];
+  categoryList.value;
 };
 
+const isVideo = (url: string): boolean => {
+  // 判断文件格式是否为视频
+  const videoFormats = ['.mp4', '.mov', '.avi', '.mkv'];
+  return videoFormats.some(format => url.toLowerCase().endsWith(format));
+};
+
+const formatDate = (timestamp: number): string => {
+  const date = new Date(timestamp * 1000); // 转换为 JavaScript Date 对象
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0'); // 获取月份并补充零
+  const day = String(date.getDate()).padStart(2, '0'); // 获取日期并补充零
+  const hours = String(date.getHours()).padStart(2, '0'); // 获取小时并补充零
+  const minutes = String(date.getMinutes()).padStart(2, '0'); // 获取分钟并补充零
+  const seconds = String(date.getSeconds()).padStart(2, '0'); // 获取秒并补充零
+
+  return `${year}年${month}月${day}日 ${hours}:${minutes}:${seconds}`;
+};
 
 
 // 显示登录弹窗的函数
@@ -380,23 +437,19 @@ const closeModal = () => {
 
 
 // 刷新按钮点击事件
-const refreshContent = () => {
+const refreshContent = async () => {
   isLoading.value = true;
-  setTimeout(() => {
-    //noteList.value = shuffleArray(getFilteredNoteList()); // 模拟异步刷新
+
+  try {
+    // 刷新时，根据当前分类重新获取数据
+    await fetchNotes(categoryClass.value === '0' ? null : categoryClass.value);
+  } catch (error) {
+    console.error('刷新数据失败', error);
+  } finally {
     isLoading.value = false; // 关闭加载状态
-  }, 500); // 设置加载时间
+  }
 };
 
-// 刷新函数
-const shuffleArray = (array: any[]) => {
-  const shuffled = [...array];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
-};
 
 
 // 笔记图片切换函数
@@ -782,7 +835,7 @@ const closeFullscreen = () => {
 
   video {
     max-width: 100%;
-    max-height: 100%;
+    max-height: 640px;
     object-fit: contain;
     border-radius: 8px;
   }
@@ -844,6 +897,7 @@ const closeFullscreen = () => {
     color: #003366;
     //font-weight: bold;
     font-size: 16px;
+    cursor: pointer;
   }
 }
 
