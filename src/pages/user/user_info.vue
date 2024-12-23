@@ -132,7 +132,7 @@
                 <img 
                 :src="item.isLike ? '/icons/like-filled.png' : '/icons/like.png'" 
                 class="like-icon" 
-                @click="item.isLike ? unlike_note : like_note" />
+                @click="item.isLike ? unlike_note(item) : like_note(item)" />
                 <span class="count">{{ item.like_counts }}</span>
               </span>
             </div>
@@ -203,18 +203,17 @@
             <input type="text" class="comment-input" placeholder="说点什么……" @click="comment_note"/>
             <!-- 点赞收藏评论按钮 -->
             <div class="action-buttons">
-              <span class="action-button" @click="like_note">
+              <span class="action-button" @click="selectedNote.isLike ? unlike_note(selectedNote) : like_note(selectedNote)" >
                 <img 
                 :src="selectedNote?.isLike ? '/icons/like-filled.png' : '/icons/like.png'" 
-                class="icons" 
-                @click="selectedNote.isLike ? unlike_note : like_note" />
+                class="icons" />
                 <i class="iconfont icon-like"></i> {{ selectedNote.like_counts }}
               </span>
-              <span class="action-button" @click="collect_note">
+              <span class="action-button" @click="selectedNote?.isCollection ? uncollect_note(selectedNote) : collect_note(selectedNote)">
                 <img 
                 :src="selectedNote?.isCollection ? '/icons/collection-filled.png' : '/icons/collection.png'" 
                 class="icons" 
-                @click="selectedNote?.isCollection ? unlike_note : like_note" />
+                 />
                 <i class="iconfont icon-collection"></i> {{ selectedNote.collect_counts }}
               </span>
               <span class="action-button" @click="comment_note">
@@ -253,8 +252,8 @@ const notelist = ref<Array<Note>>([]);
 watch(
     type,
     (newType, oldType) => {
-      console.log("旧值:", oldType);
-      console.log("新值:", newType);
+      //console.log("旧值:", oldType);
+      //console.log("新值:", newType);
 
       notelist.value = [] as Array<any>;  // 清空 noteList 数据
       getNoteList(newType);  // 调用 getNoteList 方法，传入新的 type 值
@@ -358,18 +357,10 @@ async function processNotes(res: any): Promise<Note[]> {
       // 解析tag list
       new_note.note_tag_list = note.note_tag_list ? note.note_tag_list.split(',').map(tag => tag.trim()) : []; // 如果为空，则赋值为空数组
 
-      // 获取是否点赞/收藏
-      try {
-        const res = await getifuserlikeorcollect(new_note.note_id.toString());
-        // console.log("获取是否点赞与收藏",res);
-        const {collect,like} = res.data.data;
-        new_note.isCollection = collect===0? false:true;
-        new_note.isLike = like===0? false:true;
-      }catch(error){
-        console.log("获取是否点赞与收藏出错：",error);
-        new_note.isCollection=false;
-        new_note.isLike=false;
-      }
+      // 获取是否点赞/收藏/关注
+      new_note.isLike = note.status.is_like==0?false:true;
+      new_note.isCollection = note.status.is_collect==0?false:true;
+      new_note.isFollow = note.status.is_follow==0?false:true;
 
       return new_note;
     }));
@@ -405,17 +396,6 @@ async function get_userinfo(uid: number) {
     url: "/api/auth/getUserInfoByID",
     method: "GET",
     params: { id: uid },
-  });
-}
-
-async function getifuserlikeorcollect(nid: string) {
-  return await axios({
-    url: "/api/note/getIfUserLikeOrCollect",
-    method: "GET",
-    params: {
-      uid : userStore.getUserInfo()?.uid.toString(),
-      nid : nid,
-    },
   });
 }
 
@@ -481,19 +461,80 @@ const closeFullscreen = () => {
   isFullscreen.value = false;
 };
 
-const unlike_note = () => {
+const unlike_note = async (note:Note) => {
   // todo: unlike接口
-  console.log("unlike!");
+  //console.log("unlike!");
+  try {
+    const res = await unlike(note.note_id);
+    // console.log("点赞结果",res);
+    if(res.data.code===200){
+      note.isLike=false;
+      note.like_counts-=1;
+      // ElMessage.success("取消点赞成功");
+    }else{
+      console.log("取消点赞失败：",res.data.error);
+    }
+  }catch(error){
+    console.log("取消点赞失败：",error);
+    ElMessage.error(error.response.data.error);
+  }
 }
 
-const like_note = () =>{
+const like_note = async (note:Note) =>{
   // todo: like接口
-  console.log("like!");
+  //console.log("like!");
+  try {
+    const res = await like(note.note_id);
+    // console.log("点赞结果",res);
+    if(res.data.code===200){
+      note.isLike=true;
+      note.like_counts+=1;
+      // ElMessage.success("点赞成功");
+    }else{
+      console.log("点赞失败：",res.data.error);
+    }
+  }catch(error){
+    console.log("点赞失败：",error);
+    ElMessage.error(error.response.data.error);
+  }
 };
 
-const collect_note = () =>{
+const collect_note = async (note:Note) =>{
   // todo: collect 接口
-  console.log("collect!");
+  //console.log("collect!");
+  try {
+    const res = await collect(note.note_id);
+    // console.log("点赞结果",res);
+    if(res.data.code===200){
+      note.isCollection=true;
+      note.collect_counts+=1;
+      // ElMessage.success("收藏成功");
+    }else{
+      console.log("收藏失败：",res.data.error);
+    }
+  }catch(error){
+    console.log("收藏失败：",error);
+    ElMessage.error(error.response.data.error);
+  }
+};
+
+const uncollect_note = async (note:Note) =>{
+  // todo: uncollect 接口
+  //console.log("uncollect!");
+  try {
+    const res = await uncollect(note.note_id);
+    // console.log("点赞结果",res);
+    if(res.data.code===200){
+      note.isCollection=false;
+      note.collect_counts-=1;
+      // ElMessage.success("取消收藏成功");
+    }else{
+      console.log("取消收藏失败：",res.data.error);
+    }
+  }catch(error){
+    console.log("取消收藏失败：",error);
+    ElMessage.error(error.response.data.error);
+  }
 };
 
 const comment_note = () =>{
@@ -509,6 +550,7 @@ async function get_trend(){
     method: "GET",
     params: {
       creator_id: userStore.getUserInfo()?.uid,
+      user_id: userStore.getUserInfo()?.uid,
       num : 10 ,
     },
   });
@@ -548,6 +590,51 @@ async function getuserInfo(){
   });
 };
 
+async function like(nid:number) {
+  return await axios({
+    url:"/api/note/like",
+    method: "POST",
+    data: {
+      uid: userStore.getUserInfo()?.uid,
+      note_id: nid,
+    },
+  });
+}
+
+async function unlike(nid:number) {
+  return await axios({
+    url:"/api/note/dislike",
+    method: "POST",
+    data: {
+      uid: userStore.getUserInfo()?.uid,
+      note_id: nid,
+    },
+  });
+}
+
+async function collect(nid:number) {
+  return await axios({
+    url:"/api/note/collect",
+    method: "POST",
+    data: {
+      uid: userStore.getUserInfo()?.uid,
+      note_id: nid,
+    },
+  });
+}
+
+async function uncollect(nid:number) {
+  return await axios({
+    url:"/api/note/uncollect",
+    method: "POST",
+    data: {
+      uid: userStore.getUserInfo()?.uid,
+      note_id: nid,
+    },
+  });
+}
+
+
 const editInfo = () => {
   // todo: 修改个人信息
   router.push("/editinfo");
@@ -576,11 +663,11 @@ const initData = () => {
   // todo:
   type.value = 1;
   userInfo.value = userStore.getUserInfo();
-  console.log(userInfo);
+  // console.log(userInfo);
   getuserInfo().then(res =>{
-    console.log(res);
+    // console.log(res);
     if(res.data.code===200){
-      //todo: 每次进入个人主页时具体需要刷新哪些字段？  trand_count?
+      //todo: 每次进入个人主页时具体需要刷新哪些字段?
       if(userInfo.value!==null){
         userInfo.value.note_count = res.data.note_count;
         userInfo.value.fan_count = res.data.fan_count;
