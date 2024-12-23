@@ -192,7 +192,7 @@
           </p>
 
           <!-- 修改时间 -->
-          <p class="modal-time">{{ selectedNote.note_update_time }}</p>
+          <p class="modal-time">{{ formatDate(selectedNote.note_update_time) }}</p>
           <!-- 分界线 -->
           <hr class="divider" />
           <!-- 评论区域 -->
@@ -685,6 +685,19 @@ const initData = () => {
 };
 
 initData();
+
+const formatDate = (timestamp: number): string => {
+  const date = new Date(timestamp * 1000); // 转换为 JavaScript Date 对象
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0'); // 获取月份并补充零
+  const day = String(date.getDate()).padStart(2, '0'); // 获取日期并补充零
+  const hours = String(date.getHours()).padStart(2, '0'); // 获取小时并补充零
+  const minutes = String(date.getMinutes()).padStart(2, '0'); // 获取分钟并补充零
+  const seconds = String(date.getSeconds()).padStart(2, '0'); // 获取秒并补充零
+
+  return `${year}年${month}月${day}日 ${hours}:${minutes}:${seconds}`;
+};
+
 </script>
 
 <style lang="less" scoped>
