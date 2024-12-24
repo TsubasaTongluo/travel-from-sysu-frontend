@@ -113,6 +113,15 @@
           <div class="author-info">
             <img :src="selectedNote.avatar" class="author-avatar" />
             <span class="author-name">{{ selectedNote.username }}</span>
+            <!-- 只有当发布者的 ID 与当前用户的 ID 不相等时才显示按钮 -->
+            <button
+                v-if="selectedNote?.creatorId !== userStore.getUserInfo()?.uid"
+                class="follow-button"
+                :class="{ 'followed': selectedNote?.isFollow }"
+                @click="selectedNote?.isFollow ? unfollow_note(selectedNote) : follow_note(selectedNote)"
+            >
+              {{ selectedNote?.isFollow ? '取消关注' : '关注' }}
+            </button>
           </div>
           <!-- 标题 -->
           <h1 class="modal-title">{{ selectedNote.title }}</h1>
@@ -135,18 +144,65 @@
           <p class="modal-time">{{ formatDate(selectedNote.datetime) }}</p>
           <!-- 分界线 -->
           <hr class="divider" />
-          <!-- 评论区域 -->
-          <div class="comments-placeholder">评论区</div>
+          <!-- 评论区 -->
+          <div class="comments-placeholder">
+            <p v-if="commentList && commentList.length > 0" class="comment-count">共{{ selectedNote.comment_counts }}条评论</p>
+            <div v-if="commentList && commentList.length > 0" class="comments-list">
+              <div v-for="comment in commentList" :key="comment.comment_id" class="comment-item">
+                <div class="comment-left">
+                  <img :src="comment.creator_avatar" class="comment-avatar" />
+                </div>
+                <div class="comment-right">
+                  <span class="comment-username">{{ comment.creator_username }}
+                    <span class="author-comment" v-if="selectedNote?.creatorId == comment.creator_id">
+                      作者
+                    </span>
+                    </span>
+                  <p class="comment-content">{{ comment.content }}</p>
+                  <p class="comment-time">{{ formatDate_comment(comment.created_at) }}</p>
+                  <div class="comment-icons">
+                    <span class="comment-icon">
+                      <img
+                          :src="comment.isLiked ? '/icons/like-filled.png' : '/icons/like.png'"
+                          class="icons" />
+                      <i class="iconfont icon-like"></i> {{ comment.comment_like }}
+                    </span>
+                    <span class="comment-icon">
+                      <img src="/icons/comment.png" class="icons" />
+                      <i class="iconfont icon-report"></i>
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div class="no-more-comments">
+                <br />
+                没有更多评论啦
+                <br />
+                <br />
+              </div>
+            </div>
+            <div v-else class="no-comments">暂无评论</div>
+          </div>
+
+
           <!-- 底部操作栏 -->
           <div class="modal-footer">
-            <!-- 输入栏 -->
-            <input
-                type="text"
-                class="comment-input"
-                :readonly="!isLoggedIn()"
-                @click="handleInputClick"
-                :placeholder="isLoggedIn() ? '说点什么……' : '登录后评论'"
-            />
+            <!-- 输入栏  todo: 评论接口 -->
+            <div class="comment-input-container">
+              <textarea
+                  class="comment-input"
+                  placeholder="说点什么……"
+                  v-model="commentContent"
+                  @keyup.enter="handleEnter"
+              ></textarea>
+              <button
+                  v-if="commentContent"
+                  class="send-button"
+                  @click="comment_note(selectedNote)"
+              >
+                发送
+              </button>
+            </div>
             <!-- 点赞收藏评论按钮 -->
             <div class="action-buttons">
               <span class="action-button" @click="selectedNote.isLike ? unlike_note(selectedNote) : like_note(selectedNote)" >
@@ -192,6 +248,10 @@ import default_avatar from "@/assets/logo.png";
 import default_videoCover from "@/assets/default_videoCover.png";
 
 import { useUserStore } from "@/store/user"; // 导入 Pinia store
+
+const commentContent = ref('');
+const commentList = ref<Array<Comment>>([]);
+
 
 const userStore = useUserStore();
 const userId = userStore.getUserInfo()?.id;
@@ -363,16 +423,144 @@ async function uncollect(nid:number) {
   });
 }
 
-// 评论框
-const handleInputClick = () => {
-  if (!isLoggedIn()) {
-    //login();  // 用户未登录时显示登录弹窗
-  } else {
-    console.log('用户可以评论');
-    // 执行评论相关的操作
+const comment_note = async (note:Note) =>{
+  // todo: comment 接口
+  // console.log("comment!");
+  try {
+    const res = await comment(note.note_id);
+    if(res.data.code===200){
+      note.comment_counts+=1;
+      // todo: 更新评论
+      // 获取当前笔记的一级评论
+      try {
+        const res = await get_firstcomments(note.note_id);
+        if (res.data.code===200){
+          commentList.value = await processComments(res);
+          // console.log(commentList);
+        }
+      }catch(error){
+        console.log("获取评论出错",error);
+        commentList.value = [];
+      }
+    }else{
+      console.log("评论失败：",res.data.error);
+    }
+  }catch(error){
+    console.log("评论失败：",error);
+  }finally{
+    commentContent.value='';
   }
 };
 
+async function get_firstcomments(note_id:number){
+  return await axios({
+    url:"/api/comment/getFirstLevelCommentsByNoteId",
+    method: "GET",
+    params: { note_id : note_id },
+  });
+}
+
+async function comment(note_id:number) {
+  // 暂时先只做第一层次的评论
+  return await axios({
+    url:"/api/comment/publishComment",
+    method: "POST",
+    data: {
+      note_id: note_id,
+      creator_id: userStore.getUserInfo()?.uid,
+      level: 1,
+      content: commentContent.value,
+    },
+  });
+}
+
+async function processComments(res: any): Promise<Comment[]> {
+
+  const comments = res.data.comments;
+  if (!comments) {
+    console.log("No comments found");
+    return [];
+  }
+
+  return await Promise.all(res.data.comments
+      .map(async (comment: any) => {
+        let new_comment: Comment = { ...comment };
+        try {
+          new_comment.creator_avatar = await fetchAvatarById(new_comment.creator_id);
+        } catch (error) {
+          console.log("获取头像失败:", error);
+          new_comment.creator_avatar = default_avatar; // 如果头像获取失败，设置为默认头像
+        }
+
+        try {
+          const user = await get_userinfo(new_comment.creator_id);
+          new_comment.creator_username = user.data.username;
+        } catch (error) {
+          console.log("获取用户信息失败:", error);
+          new_comment.creator_username = "未知用户"; // 默认用户名
+        }
+        return new_comment;
+      }));
+}
+
+const follow_note = async (note:Note) =>{
+  try {
+    const res = await follow(note.creatorId);
+    // console.log("关注结果",res);
+    if(res.data.code===200){
+      note.isFollow = true;
+      // ElMessage.success("关注成功");
+      // todo: 本地关注数+1
+      if(userInfo.value!==null){
+        userInfo.value.follower_count += 1;
+        userStore.setUserInfo(userInfo.value);
+      }
+    }else{
+      console.log("关注失败：",res.data.error);
+    }
+  }catch(error){
+    console.log("关注失败：",error);
+  }
+};
+
+const unfollow_note = async (note:Note) =>{
+  try {
+    const res = await unfollow(note.creatorId);
+    if(res.data.code===200){
+      note.isFollow = false;
+      if(userInfo.value!==null){
+        userInfo.value.follower_count -= 1;
+        userStore.setUserInfo(userInfo.value);
+      }
+    }else{
+      console.log("取消关注失败：",res.data.error);
+    }
+  }catch(error){
+    console.log("取消关注失败：",error);
+  }
+};
+
+async function follow(creator_id:number) {
+  return await axios({
+    url:"/api/user/follow",
+    method: "POST",
+    data: {
+      current_user_id: userStore.getUserInfo()?.uid,
+      target_user_id: creator_id,
+    },
+  });
+}
+
+async function unfollow(creator_id:number) {
+  return await axios({
+    url:"/api/user/unfollow",
+    method: "POST",
+    data: {
+      current_user_id: userStore.getUserInfo()?.uid,
+      target_user_id: creator_id,
+    },
+  });
+}
 
 import type {Note} from "@/type/note";
 
@@ -446,6 +634,7 @@ const fetchNotes = async (noteType: string | null = null, userId: string) => {
           noteType: note.note_type,
           isLike: note.status.is_like,  // 后端返回这个字段来表示是否已点赞
           isCollection: note.status.is_collect,  // 后端返回这个字段来表示是否已收藏
+          isFollow: note.status.is_follow,
         }));
       }
     } else {
@@ -460,8 +649,13 @@ const fetchNotes = async (noteType: string | null = null, userId: string) => {
   }
 };
 
-
-
+async function get_userinfo(uid: number) {
+  return await axios({
+    url: "/api/auth/getUserInfoByID",
+    method: "GET",
+    params: { id: uid },
+  });
+}
 
 
 // 获取用户名的函数
@@ -470,7 +664,6 @@ const fetchUsernameById = async (userId: number): Promise<string | null> => {
     const response = await axios.get(`/api/auth/getUserInfoByID`, {
       params: { id: userId },
     });
-    console.log('User info response:', response.data);  // 打印返回的数据
     if (response.data && response.data.status === '成功') {
       return response.data.username; // 返回用户名
     } else {
@@ -489,7 +682,6 @@ const fetchAvatarById = async (userId: number): Promise<string | null> => {
     const response = await axios.get(`/api/auth/getAvatar`, {
       params: { uid: userId },
     });
-    console.log('Avatar response:', response.data); // 打印返回的数据
     if (response.data && response.data.avatar) {
       return response.data.avatar; // 返回头像URL
     } else {
@@ -557,6 +749,22 @@ const formatDate = (timestamp: number): string => {
   return `${year}年${month}月${day}日 ${hours}:${minutes}:${seconds}`;
 };
 
+function formatDate_comment(input) {
+  // 将输入字符串转为 Date 对象
+  const date = new Date(input);
+
+  // 提取年月日和时间
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0'); // 月份从0开始，需加1
+  const day = date.getDate().toString().padStart(2, '0');
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const seconds = date.getSeconds().toString().padStart(2, '0');
+
+  // 拼接格式化字符串
+  return `${year}年${month}月${day}日 ${hours}:${minutes}:${seconds}`;
+}
+
 // 显示登录弹窗的函数
 const login = () => {
   loginShow.value = true;
@@ -568,8 +776,20 @@ const close = () => {
 };
 
 
-const toMain = (note: any) => {
+const toMain = async (note: any) => {
   selectedNote.value = note;
+  // 获取当前笔记的一级评论
+  try {
+    const res = await get_firstcomments(selectedNote.value?.note_id);
+    // console.log("1获取评论：",res);
+    if (res.data.code===200){
+      commentList.value = await processComments(res);
+      // console.log(commentList);
+    }
+  }catch(error){
+    console.log("获取评论出错",error);
+    commentList.value = [];
+  }
   isModalVisible.value = true;
   isVideoPlaying.value = false;
   currentImageIndex.value = 0;
@@ -836,6 +1056,7 @@ const closeFullscreen = () => {
             white-space: nowrap;
 
             .author-avatar {
+              border: 1px solid #eee;
               margin-right: 6px;
               width: 20px;
               height: 20px;
@@ -1004,7 +1225,38 @@ const closeFullscreen = () => {
   display: flex;
   flex-direction: column;
   overflow-y: auto; /* 启用垂直滚动条 */
-  max-height: 100%; /* 限制最大高度，防止内容溢出 */
+  overflow-x: hidden;
+  max-height: calc(100% - 50px); /* 限制最大高度，防止内容溢出 */
+  padding-right: 10px; /* 向右边移动滚动条 */
+
+  /* 默认隐藏滚动条 */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;
+}
+
+/* 针对 WebKit 浏览器（如 Chrome、Edge）隐藏滚动条 */
+.modal-text::-webkit-scrollbar {
+  display: none;
+}
+
+/* 鼠标悬停时显示滚动条 */
+.modal-text:hover {
+  scrollbar-width: thin; /* Firefox */
+}
+
+.modal-text:hover::-webkit-scrollbar {
+  display: block; /* WebKit 浏览器显示滚动条 */
+  width: 6px; /* 设置滚动条宽度 */
+}
+
+/* 自定义滚动条样式 */
+.modal-text::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-text::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.3); /* 滚动条颜色 */
+  border-radius: 3px; /* 滚动条圆角 */
 }
 
 
@@ -1014,6 +1266,7 @@ const closeFullscreen = () => {
   margin-bottom: 16px; /* 头像和标题之间的间距 */
 
   .author-avatar {
+    border: 1px solid #eee;
     width: 40px;
     height: 40px;
     border-radius: 50%;
@@ -1024,6 +1277,33 @@ const closeFullscreen = () => {
   .author-name {
     font-size: 18px;
     font-weight: bold;
+  }
+
+  .follow-button {
+    margin-left: auto; /* 将按钮推到右侧 */
+    padding: 6px 12px;
+    font-size: 14px;
+    background-color: #ff0000;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.3s;
+  }
+
+  .follow-button:hover {
+    background-color: #e92828; /* 鼠标悬停时的颜色 */
+  }
+
+  .follow-button.followed {
+    background-color: #ff5c8d; /* 取消关注时的背景色 */
+  }
+
+  .follow-button:focus {
+    outline: none; /* 去掉按钮的聚焦框 */
   }
 
 }
@@ -1046,7 +1326,7 @@ const closeFullscreen = () => {
   // 等线字体
   //font-family: "PingFang SC", "Helvetica Neue", "Helvetica", "Arial", "Microsoft YaHei", "\\5FAE软雅黑", "Hiragino Sans GB", "Heiti SC", "WenQuanYi Micro Hei", sans-serif;
   margin-top: 0; /* 标题于内容之间的间距 */
-  margin-bottom: 4px; /* 内容和tag与时间之间的间距 */
+  margin-bottom: -2px; /* 内容和tag与时间之间的间距 */
   white-space: pre-line;
 
   .modal-tag {
@@ -1076,8 +1356,117 @@ const closeFullscreen = () => {
   color: #999;
   text-align: center;
   margin-top: 20px;
-  min-height: 150px; /* 最小高度 */
+  min-height: 150px;
+
+  .comment-count{
+    text-align: left;
+    font-size: 14px;
+    color: #8b8b8b;
+    font-weight: bold;
+    margin-top: 0;
+    margin-bottom: 10px;
+  }
+
+  .comments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px; /* 每条评论之间的间距 */
+    padding: 0;
+  }
+
+  .comment-item {
+    background-color: #fff;
+    border-radius: 8px;
+    padding: 12px;
+    display: flex; /* 使用 flex 布局，使头像和评论内容并排 */
+    gap: 12px; /* 左右容器之间的间距 */
+    align-items: flex-start; /* 确保头像和右侧内容垂直对齐 */
+  }
+
+  .comment-left {
+    flex-shrink: 0; /* 固定左侧宽度 */
+  }
+
+  .comment-avatar {
+    border: 1px solid #eee;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+  }
+
+  .comment-right {
+    display: flex;
+    flex-direction: column; /* 确保右侧内容垂直排列 */
+    justify-content: flex-start; /* 保持内容顶部对齐 */
+    gap: 0px; /* 用户名、内容和时间之间的间距 */
+    text-align: left;
+    flex: 1; /* 右侧容器占据剩余宽度 */
+  }
+
+  .comment-username {
+    //font-weight: bold;
+    font-size: 16px;
+    color: #8b8b8b;
+    margin-bottom: -5px;  // 用户名与评论内容之间的间距
+    display: flex; /* 启用 Flexbox */
+    align-items: center; /* 垂直居中对齐 */
+
+    .author-comment{
+      margin-left: 6px;
+      padding: 2px;
+      border-radius: 8px; /* 圆角 */
+      font-size: 13px;
+      background-color: #f7f7f7;
+      color: #8b8b8b;
+    }
+  }
+
+
+  .comment-content {
+    font-size: 16px;
+    color: #555;
+    white-space: normal; /* 允许换行 */
+    overflow-wrap: break-word; /* 长单词会换行 */
+    word-wrap: break-word; /* 兼容旧浏览器的属性 */
+    word-break: break-word; /* 额外确保单词在任何地方都能断开 */
+    margin-bottom: -5px;  // 评论内容与时间之间的间距
+  }
+
+  .comment-time {
+    font-size: 13px;
+    color: #8b8b8b;
+    margin-bottom: 2px;
+  }
+
+  .comment-icons {
+    display: flex;
+    gap: 16px; /* 图标间的间距 */
+    margin-top: 0px; /* 与时间的间距 */
+  }
+
+  .comment-icon {
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    color: #333;
+    margin-left: -8px;
+  }
+
+  .comment-icon img {
+    width: 30px; /* 图标大小 */
+    height: 30px;
+  }
+
+
+  .no-comments {
+    font-size: 16px;
+    color: #aaa;
+    font-style: italic;
+  }
 }
+
 
 .modal-footer {
   position: absolute;
@@ -1093,17 +1482,64 @@ const closeFullscreen = () => {
   border-top: 1px solid #e0e0e0;
   border-radius: 0 0 8px 0;
 
+
+  .comment-input-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    // gap: 10px; /* 留出按钮与输入框之间的空隙 */
+  }
+
   .comment-input {
-    flex: 1;
-    height: 25px;
+    width: 100%;
+    //min-height: 25px; /* 设置最小高度 */
+    //max-height: 50px;
     padding: 8px 12px;
-    border-radius: 20px;
-    margin-right: 20px;
     font-size: 14px;
+    //border: 1px solid #ccc;
+    border: none;
+    border-radius: 20px;
+    outline: none;
+    transition: border-color 0.3s ease;
     background: rgba(0, 0, 0, 0.03);
-    border: none; // 去除输入框的边框
-    outline: none;  // 去除点击时输入框的边框
-    box-shadow: none;   // 去除输入框的阴影，看起来更简约一点
+    padding-right: 25%; /* 为了避免右侧文字显示，设置 padding-right */
+    resize: none;  /* 禁止手动调整大小 */
+    box-sizing: border-box; /* 确保 padding 不会改变宽度 */
+  }
+
+  .comment-input:focus {
+    border: 1px solid;
+    border-color: #333; /* 输入框聚焦时的边框颜色 */
+  }
+
+  .send-button {
+    position: absolute;
+    right: 10px;  /* 发送按钮位置靠右 */
+    padding: 6px 12px;
+    background-color: #333;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.3s;
+    opacity: 0;  /* 初始状态下按钮不可见 */
+  }
+
+  .send-button:hover {
+    background-color: #666;
+  }
+
+  .send-button:focus {
+    outline: none;
+  }
+
+  .comment-input:not(:placeholder-shown) + .send-button {
+    opacity: 1;  /* 只有当输入框有值时按钮才显示 */
   }
 
   .action-buttons {
@@ -1124,6 +1560,7 @@ const closeFullscreen = () => {
     }
   }
 }
+
 
 .refresh-button {
   position: fixed;
