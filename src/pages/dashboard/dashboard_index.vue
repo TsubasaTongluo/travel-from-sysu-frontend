@@ -124,6 +124,7 @@
               <span
                   v-for="(tag, index) in selectedNote.tag.split(',')"
                   :key="index"
+                    @click="handleTagClick(tag.trim())"
               >
                 #{{ tag.trim() }}
               </span>
@@ -193,12 +194,12 @@ import Login from "@/pages/user/user_login.vue";
 import axios from 'axios';
 import default_avatar from "@/assets/logo.png";
 import default_videoCover from "@/assets/default_videoCover.png";
+import eventBus from "@/utils/eventBus";
 
 import { useUserStore } from "@/store/user"; // 导入 Pinia store
 
 const userStore = useUserStore();
 const userId = userStore.getUserInfo()?.id;
-
 
 const noteList = ref<Note[]>([]); // 从后端获取的笔记数据
 const categoryClass = ref("0"); // 当前分类，"0" 表示推荐
@@ -227,6 +228,7 @@ import { toRaw } from 'vue';  // 获取用户原始信息以判断是否登录
 
 // 初始化加载数据
 onMounted(() => {
+  eventBus.on("search", performSearch); // 监听事件
   const userInfo = userStore.getUserInfo();
   if (userInfo && userInfo.username && userInfo.uid) {
     console.log('当前用户信息:', userInfo);
@@ -236,6 +238,189 @@ onMounted(() => {
     fetchNotes();  // 未登录时加载公开内容
   }
 });
+
+
+
+const performSearch = (keyword: string) => {
+  console.log("搜索关键词：", keyword);
+
+  if (!keyword.trim()) {
+    console.warn("关键词为空！");
+    return;
+  }
+
+  isLoading.value = true;
+
+  console.log("userid", userId);
+
+  axios
+    .get("/api/note/getNotesByKeywords", {
+      params: {
+        user_id: userId || 0, // 记得改
+        keyword: keyword,
+        num: 10, // 请求的条数
+        cursor: "", // 游标为空
+      },
+    })
+    .then((response) => {
+      console.log("getnotesbykeyword", response);
+
+      if (response.data && response.data.data && response.data.data.notes) {
+        let notes = response.data.data.notes;
+
+        if (notes === null) {
+          noteList.value = [];
+          console.warn("后端返回了空的笔记列表（null），已转换为空数组");
+        } else {
+          // 填充用户名和头像
+          Promise.all(
+            notes.map((note: any) => {
+              return fetchUsernameById(note.note_creator_id)
+                .then((username) => {
+                  note.username = username || "未知用户";
+                  return fetchAvatarById(note.note_creator_id).then((avatar) => {
+                    note.avatar = avatar || default_avatar;
+                    return note;
+                  });
+                })
+                .catch((error) => {
+                  console.error("填充用户信息失败：", error);
+                  return note;
+                });
+            })
+          ).then((updatedNotes) => {
+            // 更新笔记列表
+            noteList.value = updatedNotes.map((note: any) => ({
+              note_id: note.note_id,
+              title: note.note_title,
+              content: note.note_content,
+              viewCount: note.view_count,
+              tag: note.note_tag_list || [],
+              noteCover: (() => {
+                if (typeof note.note_urls === "string") {
+                  try {
+                    const parsedUrls = JSON.parse(note.note_urls);
+                    if (Array.isArray(parsedUrls)) {
+                      return parsedUrls;
+                    }
+                  } catch (error) {
+                    console.error("note_urls 字段解析失败：", error);
+                  }
+                  return [];
+                } else if (Array.isArray(note.note_urls)) {
+                  return note.note_urls;
+                }
+                return [];
+              })(),
+              creatorId: note.note_creator_id,
+              datetime: note.note_update_time,
+              likeCount: note.like_counts,
+              collection: note.collect_counts,
+              comment_counts: note.comment_counts,
+              username: note.username,
+              avatar: note.avatar,
+              noteType: note.note_type,
+              isLike: note.status?.is_like, // 后端返回这个字段来表示是否已点赞
+              isCollection: note.status?.is_collect, // 后端返回这个字段来表示是否已收藏
+            }));
+            isLoading.value = false;
+            console.log("搜索结果：", noteList.value);
+          });
+        }
+      } else {
+        console.error("后端返回数据格式错误：缺少 notes 字段");
+        noteList.value = [];
+        isLoading.value = false;
+      }
+    })
+    .catch((error) => {
+      console.error("获取笔记数据失败", error);
+      isLoading.value = false;
+      noteList.value = [];
+    });
+};
+
+// 点击 tag 方法
+const handleTagClick = async (tag: string) => {
+  isModalVisible.value = false;
+  try {
+    console.log("userid", userId)
+    eventBus.emit("tag-clicked", tag); // 通过事件总线发送 tag
+    const response = await axios.get("/api/note/getNotesByTag", {
+      params: {
+        user_id: userId || 0, //记得改
+        tag_name: tag,
+        num: 20,         // 请求的条数
+        cursor: '',   // 游标为空
+      },
+    });
+
+
+    if (response.data && response.data.data && response.data.data.notes) {
+      console.log("getnotesbytag", response)
+      let notes = response.data.data.notes;
+
+      if (notes === null) {
+        noteList.value = [];
+        console.warn("后端返回了空的笔记列表（null），已转换为空数组");
+
+        // 填充用户名和头像
+        for (let note of notes) {
+          const username = await fetchUsernameById(note.note_creator_id);
+          note.username = username || '未知用户';
+
+          const avatar = await fetchAvatarById(note.note_creator_id);
+          note.avatar = avatar || default_avatar;
+        }
+
+        // 更新笔记列表
+        noteList.value = notes.map((note: any) => ({
+          note_id: note.note_id,
+          title: note.note_title,
+          content: note.note_content,
+          viewCount: note.view_count,
+          tag: note.note_tag_list || [],
+          noteCover: (() => {
+            if (typeof note.note_urls === "string") {
+              try {
+                const parsedUrls = JSON.parse(note.note_urls);
+                if (Array.isArray(parsedUrls)) {
+                  return parsedUrls;
+                }
+              } catch (error) {
+                console.error("note_urls 字段解析失败：", error);
+              }
+              return [];
+            } else if (Array.isArray(note.note_urls)) {
+              return note.note_urls;
+            }
+            return [];
+          })(),
+          creatorId: note.note_creator_id,
+          datetime: note.note_update_time,
+          likeCount: note.like_counts,
+          collection: note.collect_counts,
+          comment_counts: note.comment_counts,
+          username: note.username,
+          avatar: note.avatar,
+          noteType: note.note_type,
+          isLike: note.status.is_like,  // 后端返回这个字段来表示是否已点赞
+          isCollection: note.status.is_collect,  // 后端返回这个字段来表示是否已收藏
+        }));
+      }
+    } else {
+      console.error('后端返回数据格式错误：缺少 notes 字段');
+      noteList.value = [];
+    }
+    isLoading.value = false;
+  } catch (error) {
+    console.error('获取笔记数据失败', error);
+    isLoading.value = false;
+    noteList.value = [];
+  }
+  
+};
+
 
 const handleActionClick = (action: string, note: Note) => {
   if (!isLoggedIn()) {
@@ -406,7 +591,7 @@ const fetchNotes = async (noteType: string | null = null, userId: string | null 
     const response = await axios.get('/api/note/getNotesByUpdateTime', {
       params: {
         note_type: noteType || '',  // 分类过滤（如果有的话）
-        user_id: userId || 0, // 用户id，未登录时使用 0 或空字符串
+        user_id: userId || '', // 用户id，未登录时使用 0 或空字符串
         num: num,         // 请求的条数
         cursor: '',   // 游标为空
       },
@@ -547,7 +732,12 @@ const fetchCategories = () => {
   categoryList.value;
 };
 
-const isVideo = (url: string): boolean => {
+const isVideo = (url: string | undefined | null): boolean => {
+  // 如果 url 是 undefined 或 null，直接返回 false
+  if (!url || typeof url !== 'string') {
+    return false;
+  }
+
   // 判断文件格式是否为视频
   const videoFormats = ['.mp4', '.mov', '.avi', '.mkv'];
   return videoFormats.some(format => url.toLowerCase().endsWith(format));
@@ -634,6 +824,8 @@ const toggleFullscreenImage = () => {
 const closeFullscreen = () => {
   isFullscreen.value = false;
 };
+
+
 
 </script>
 

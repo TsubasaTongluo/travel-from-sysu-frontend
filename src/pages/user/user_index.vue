@@ -14,8 +14,8 @@
             placeholder="搜索"
           />
           <div class="input-button">
-            <div class="search-icon">
-              <a href="#">
+            <div class="search-icon"  @click="searchNotes">
+              <a href="#" >
                 <Search style="width: 1.2em; height: 1.2em; margin-right: 20px; margin-top: 5px" />
               </a>
             </div>
@@ -163,10 +163,11 @@
 
 <script lang="ts" setup>
 import { Search, House, Star, Bell, More, CirclePlus } from "@element-plus/icons-vue";
-import { ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import Login from "@/pages/user/user_login.vue";
 import { useUserStore } from "@/store/user";
+import eventBus from "@/utils/eventBus";
+import { ref, onMounted, onUnmounted } from "vue";
 
 // 初始化loginShow为false，弹窗默认隐藏
 const loginShow = ref(false);
@@ -190,6 +191,22 @@ const getUserInfo = () => {
 
 getUserInfo();  // 调用此函数以获取用户信息
 
+// 监听从其他组件发来的 tag 点击事件
+const handleTagClick = (tag: string) => {
+  console.log("接收到来自事件总线的标签：", tag);
+  keyword.value = "#" + tag; // 将标签填入搜索框
+};
+
+// 监听和清理事件总线
+onMounted(() => {
+  eventBus.on("tag-clicked", handleTagClick); // 监听事件
+});
+
+onUnmounted(() => {
+  eventBus.off("tag-clicked", handleTagClick); // 取消监听
+});
+
+
 // 在访问 userId 时，检查 userInfo 是否有效
 let userId: string | undefined = undefined;
 if (userInfo.value) {
@@ -201,6 +218,17 @@ if (userInfo.value) {
 // 显示登录弹窗的函数
 const login = () => {
   loginShow.value = true;
+};
+
+const searchNotes = () => {
+  console.log('click search')
+  if (!keyword.value.trim()) {
+    alert("请输入搜索关键词！");
+    return;
+  }
+
+  // 使用事件总线触发搜索事件，并传递关键词
+  eventBus.emit("search", keyword.value);
 };
 
 // 关闭登录弹窗的函数
