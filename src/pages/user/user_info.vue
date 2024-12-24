@@ -174,6 +174,15 @@
           <div class="author-info">
             <img :src="selectedNote.avatar" class="author-avatar" />
             <span class="author-name">{{ selectedNote.username }}</span>
+            <!-- 只有当发布者的 ID 与当前用户的 ID 不相等时才显示按钮 -->
+            <button 
+              v-if="selectedNote?.note_creator_id !== userInfo?.uid" 
+              class="follow-button" 
+              :class="{ 'followed': selectedNote?.isFollow }" 
+              @click="selectedNote?.isFollow ? unfollow_note(selectedNote) : follow_note(selectedNote)"
+            >
+              {{ selectedNote?.isFollow ? '取消关注' : '关注' }}
+            </button>
           </div>
           <!-- 标题 -->
           <h1 class="modal-title">{{ selectedNote.note_title }}</h1>
@@ -195,12 +204,41 @@
           <p class="modal-time">{{ formatDate(selectedNote.note_update_time) }}</p>
           <!-- 分界线 -->
           <hr class="divider" />
+          <!-- 评论区域
+          <div class="comments-placeholder">评论区</div> -->
           <!-- 评论区域 -->
-          <div class="comments-placeholder">评论区</div>
+          <div class="comments-placeholder">
+            <div v-if="commentList && commentList.length > 0" class="comments-list">
+              <div v-for="comment in commentList" :key="comment.comment_id" class="comment-item">
+                <div class="comment-author-info">
+                  <img :src="comment.creator_avatar" class="comment-avatar" />
+                  <span class="comment-username">{{ comment.creator_username }}</span>
+                </div>
+                <p class="comment-content">{{ comment.content }}</p>
+                <p class="comment-time">{{ comment.created_at }}</p>
+              </div>
+            </div>
+            <div v-else class="no-comments">暂无评论</div>
+          </div>
+
           <!-- 底部操作栏 -->
           <div class="modal-footer">
             <!-- 输入栏  todo: 评论接口 -->
-            <input type="text" class="comment-input" placeholder="说点什么……" @click="comment_note"/>
+            <div class="comment-input-container">
+              <input
+                type="text"
+                class="comment-input"
+                placeholder="说点什么……"
+                v-model="commentContent"
+              />
+              <button
+                v-if="commentContent"
+                class="send-button"
+                @click="comment_note(selectedNote)"
+              >
+                发送
+              </button>
+            </div>
             <!-- 点赞收藏评论按钮 -->
             <div class="action-buttons">
               <span class="action-button" @click="selectedNote.isLike ? unlike_note(selectedNote) : like_note(selectedNote)" >
@@ -216,7 +254,7 @@
                  />
                 <i class="iconfont icon-collection"></i> {{ selectedNote.collect_counts }}
               </span>
-              <span class="action-button" @click="comment_note">
+              <span class="action-button">
                 <img src="/icons/comment.png" class="icons"/>
                 <i class="iconfont icon-comment"></i> {{ selectedNote.comment_counts }}
               </span>
@@ -239,6 +277,7 @@ import defaultAvatar from '@/assets/logo.png';
 import axios from "axios";
 import type {Note} from "@/type/note";
 import { User } from "@/type/user";
+import {Comment} from "@/type/comment";
 import { ElMessage } from "element-plus";
 const route = useRoute();
 const userStore = useUserStore();
@@ -248,6 +287,8 @@ const type = ref(0);
 const router = useRouter();
 
 const notelist = ref<Array<Note>>([]);
+const commentList = ref<Array<Comment>>([]);
+const commentContent = ref('');
 
 import default_videoCover from "@/assets/default_videoCover.png";
 
@@ -369,6 +410,35 @@ async function processNotes(res: any): Promise<Note[]> {
     }));
 }
 
+async function processComments(res: any): Promise<Comment[]> {
+  
+  const comments = res.data.comments;
+  if (!comments) {
+    console.log("No comments found");
+    return [];
+  }
+
+  return await Promise.all(res.data.comments
+    .map(async (comment: any) => {
+      let new_comment: Comment = { ...comment };
+      try {
+        new_comment.creator_avatar = await get_avatar(new_comment.creator_id);
+      } catch (error) {
+        console.log("获取头像失败:", error);
+        new_comment.creator_avatar = defaultAvatar; // 如果头像获取失败，设置为默认头像
+      }
+
+      try {
+        const user = await get_userinfo(new_comment.creator_id);
+        new_comment.creator_username = user.data.username;
+      } catch (error) {
+        console.log("获取用户信息失败:", error);
+        new_comment.creator_username = "未知用户"; // 默认用户名
+      }
+      return new_comment;
+    }));
+}
+
 
 // 判断文件类型
 function getFileType(url: string): string {
@@ -426,8 +496,20 @@ const currentImageIndex = ref(0);  // 当前显示的图片索引，用于多图
 
 const isFullscreen = ref(false);  // 控制全屏图片弹窗显示
 
-const toMain = (note: any) => {
+const toMain = async (note: any) => {
   selectedNote.value = note;
+  // 获取当前笔记的一级评论
+  try {
+    const res = await get_firstcomments(selectedNote.value?.note_id);
+    // console.log("1获取评论：",res);
+    if (res.data.code===200){
+      commentList.value = await processComments(res);
+      // console.log(commentList);
+    }
+  }catch(error){
+    console.log("获取评论出错",error);
+    commentList.value = [];
+  }
   isModalVisible.value = true;
   isVideoPlaying.value = false;
   currentImageIndex.value = 0;
@@ -540,9 +622,73 @@ const uncollect_note = async (note:Note) =>{
   }
 };
 
-const comment_note = () =>{
+const follow_note = async (note:Note) =>{
+  try {
+    const res = await follow(note.note_creator_id);
+    // console.log("关注结果",res);
+    if(res.data.code===200){
+      note.isFollow = true;
+      // ElMessage.success("关注成功");
+      // todo: 本地关注数+1
+      if(userInfo.value!==null){
+        userInfo.value.follower_count += 1;
+        userStore.setUserInfo(userInfo.value);
+      }
+    }else{
+      console.log("关注失败：",res.data.error);
+    }
+  }catch(error){
+    console.log("关注失败：",error);
+    ElMessage.error(error.response.data.error);
+  }
+};
+
+const unfollow_note = async (note:Note) =>{
+  try {
+    const res = await unfollow(note.note_creator_id);
+    if(res.data.code===200){
+      note.isFollow = false;
+      if(userInfo.value!==null){
+        userInfo.value.follower_count -= 1;
+        userStore.setUserInfo(userInfo.value);
+      }
+    }else{
+      console.log("取消关注失败：",res.data.error);
+    }
+  }catch(error){
+    console.log("取消关注失败：",error);
+    ElMessage.error(error.response.data.error);
+  }
+};
+
+const comment_note = async (note:Note) =>{
   // todo: comment 接口
-  console.log("comment!");
+  // console.log("comment!");
+  try {
+    const res = await comment(note.note_id);
+    if(res.data.code===200){
+      note.comment_counts+=1;
+      // todo: 更新评论
+      // 获取当前笔记的一级评论
+      try {
+        const res = await get_firstcomments(note.note_id);
+        if (res.data.code===200){
+          commentList.value = await processComments(res);
+          // console.log(commentList);
+        }
+      }catch(error){
+        console.log("获取评论出错",error);
+        commentList.value = [];
+      }
+    }else{
+      console.log("评论失败：",res.data.error);
+    }
+  }catch(error){
+    console.log("评论失败：",error);
+    ElMessage.error(error.response.data.error);
+  }finally{
+    commentContent.value='';
+  }
 };
 
 
@@ -637,6 +783,50 @@ async function uncollect(nid:number) {
   });
 }
 
+async function follow(creator_id:number) {
+  return await axios({
+    url:"/api/user/follow",
+    method: "POST",
+    data: {
+      current_user_id: userStore.getUserInfo()?.uid,
+      target_user_id: creator_id,
+    },
+  });
+}
+
+async function unfollow(creator_id:number) {
+  return await axios({
+    url:"/api/user/unfollow",
+    method: "POST",
+    data: {
+      current_user_id: userStore.getUserInfo()?.uid,
+      target_user_id: creator_id,
+    },
+  });
+}
+
+async function get_firstcomments(note_id:number){
+  return await axios({
+    url:"/api/comment/getFirstLevelCommentsByNoteId",
+    method: "GET",
+    params: { note_id : note_id },
+  });
+}
+
+async function comment(note_id:number) {
+  // 暂时先只做第一层次的评论
+  return await axios({
+    url:"/api/comment/publishComment",
+    method: "POST",
+    data: {
+      note_id: note_id,
+      creator_id: userStore.getUserInfo()?.uid,
+      level: 1,
+      content: commentContent.value,
+    },
+  });
+}
+
 
 const editInfo = () => {
   // todo: 修改个人信息
@@ -655,11 +845,6 @@ const close = () => {
 const toChat = () => {
   // todo:
   console.log("tochat");
-};
-
-const follow = (fid: string, type: number) => {
-  // todo:
-  console.log("follow");
 };
 
 const initData = () => {
@@ -1213,6 +1398,33 @@ const formatDate = (timestamp: number): string => {
       font-weight: bold;
     }
 
+    .follow-button {
+      margin-left: auto; /* 将按钮推到右侧 */
+      padding: 6px 12px;
+      font-size: 14px;
+      background-color: #ff0000;
+      color: white;
+      border: none;
+      border-radius: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.3s;
+    }
+
+    .follow-button:hover {
+      background-color: #e92828; /* 鼠标悬停时的颜色 */
+    }
+
+    .follow-button.followed {
+      background-color: #ff5c8d; /* 取消关注时的背景色 */
+    }
+
+    .follow-button:focus {
+      outline: none; /* 去掉按钮的聚焦框 */
+    }
+
   }
 
   .modal-title {
@@ -1263,6 +1475,60 @@ const formatDate = (timestamp: number): string => {
     text-align: center;
     margin-top: 20px;
     min-height: 150px; /* 最小高度 */
+
+    .comments-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px; /* 每条评论之间的间距 */
+      padding: 0 20px; /* 给评论列表两边留空 */
+    }
+
+    .comment-item {
+      background-color: #f9f9f9;
+      border-radius: 8px;
+      padding: 12px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* 添加轻微的阴影效果 */
+      display: flex;
+      flex-direction: column;
+      gap: 8px; /* 每个评论部分之间的间距 */
+    }
+
+    .comment-author-info {
+      display: flex;
+      align-items: center;
+      gap: 12px; /* 头像和用户名之间的间距 */
+    }
+
+    .comment-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover; /* 确保头像不变形 */
+    }
+
+    .comment-username {
+      font-weight: bold;
+      color: #333;
+    }
+
+    .comment-content {
+      font-size: 14px;
+      color: #555;
+      margin-bottom: 8px; /* 内容和时间之间的间距 */
+    }
+
+    .comment-time {
+      font-size: 12px;
+      color: #999;
+      text-align: right;
+    }
+
+    .no-comments {
+      font-size: 16px;
+      color: #aaa;
+      font-style: italic;
+    }
+
   }
 
   .modal-footer {
@@ -1279,17 +1545,67 @@ const formatDate = (timestamp: number): string => {
     border-top: 1px solid #e0e0e0;
     border-radius: 0 0 8px 0;
 
+    // .comment-input {
+    //   flex: 1;
+    //   height: 25px;
+    //   padding: 8px 12px;
+    //   border-radius: 20px;
+    //   margin-right: 20px;
+    //   font-size: 14px;
+    //   background: rgba(0, 0, 0, 0.03);
+    //   border: none; // 去除输入框的边框
+    //   outline: none;  // 去除点击时输入框的边框
+    //   box-shadow: none;   // 去除输入框的阴影，看起来更简约一点
+    // }
+
+    .comment-input-container {
+      position: relative;
+      display: flex;
+      align-items: center;
+      width: 100%;
+    }
+
     .comment-input {
-      flex: 1;
-      height: 25px;
+      width: 100%;
       padding: 8px 12px;
-      border-radius: 20px;
-      margin-right: 20px;
       font-size: 14px;
-      background: rgba(0, 0, 0, 0.03);
-      border: none; // 去除输入框的边框
-      outline: none;  // 去除点击时输入框的边框
-      box-shadow: none;   // 去除输入框的阴影，看起来更简约一点
+      border: 1px solid #ccc;
+      border-radius: 20px;
+      outline: none;
+      transition: border-color 0.3s ease;
+    }
+
+    .comment-input:focus {
+      border-color: #007bff; /* 输入框聚焦时的边框颜色 */
+    }
+
+    .send-button {
+      position: absolute;
+      right: 10px;  /* 发送按钮位置靠右 */
+      padding: 6px 12px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.3s;
+      opacity: 0;  /* 初始状态下按钮不可见 */
+    }
+
+    .send-button:hover {
+      background-color: #0056b3;
+    }
+
+    .send-button:focus {
+      outline: none;
+    }
+
+    .comment-input:not(:placeholder-shown) + .send-button {
+      opacity: 1;  /* 只有当输入框有值时按钮才显示 */
     }
 
     .action-buttons {
