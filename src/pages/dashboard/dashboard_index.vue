@@ -1101,7 +1101,7 @@ const closeFullscreen = () => {
       -webkit-user-select: none;
       align-items: center;
       font-size: 16px;
-      color: rgba(51, 51, 51, 0.8);
+      color: rgba(0, 86, 31, 0.8);
       height: 40px;
       white-space: nowrap;
       height: 72px;
@@ -1119,9 +1119,9 @@ const closeFullscreen = () => {
 
         .active {
           font-weight: 600;
-          background: rgba(0, 0, 0, 0.03);
-          border-radius: 999px;
-          color: #333;
+          background: rgba(0, 86, 31, 0.3);
+          border-radius: 9px;
+          color: #00561f;
         }
 
         .channel {
@@ -1197,7 +1197,7 @@ const closeFullscreen = () => {
         margin-bottom: 16px; /* 卡片间距 */
         background: #fff;
         border-radius: 8px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 1px 3px rgba(0, 86, 31, 0.3);
         overflow: hidden;
 
         .image-wrapper {
@@ -1802,25 +1802,26 @@ const closeFullscreen = () => {
   position: fixed;
   bottom: 50px;
   right: 40px;
-  background-color: #f5f5f5;
+  background-color:rgba(246, 255, 249, 0.9);
   border: none;
   border-radius: 50%;
-  width: 50px;
-  height: 50px;
+  width: 66px;
+  height: 66px;
   display: flex;
   justify-content: center;
   align-items: center;
   cursor: pointer;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 6px rgba(0, 86, 31, 0.9);
   transition: background-color 0.3s, transform 0.3s;
   .icons {
-    width: 54px;
-    height: 54px;
+    width: 66px;
+    height: 66px;
+    
   }
 }
 
 .refresh-button:hover {
-  background-color: #f3f3f3;
+  background-color:rgba(0, 86, 31, 0.9);
 }
 
 .fullscreen-modal {

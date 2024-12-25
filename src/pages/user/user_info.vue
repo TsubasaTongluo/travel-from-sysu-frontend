@@ -975,18 +975,18 @@ function formatDate_comment(input) {
             bottom: -32px;  /* 将按钮放置在头像下方 */
             left: 50%;
             transform: translateX(-50%);  /* 水平居中按钮 */
-            padding: 8px 16px;
-            background-color: rgba(241, 173, 190, 0.512); /* 半透明背景 */
+            padding: 8px 20px;
+            background-color: rgba(0, 86, 31, 0.5); /* 半透明背景 */
             color: white;
             border: none;
-            border-radius: 15px;
+            border-radius: 19px;
             font-size: 12px;
             cursor: pointer;
             transition: background-color 0.3s;
           }
 
           .edit-info-btn:hover {
-            background-color: rgba(241, 173, 190, 0.29); /* 鼠标悬停时改变透明度 */
+            background-color: rgba(0, 86, 31, 0.8); /* 鼠标悬停时改变透明度 */
           }
         }
       }

@@ -2,8 +2,8 @@
   <div class="container" id="container">
     <div class="top">
       <header class="mask-paper">
-        <a style="display: flex">
-          <img src="../../assets/logo.png" style="width: 80px; margin-left: 20px" />
+        <a class="logo-container">
+          <img src="../../assets/logo.png" class="logo" />
         </a>
         <div class="tool-box"></div>
         <div class="input-box" id="sujContainer">
@@ -62,7 +62,7 @@
               <div>
                 <div>
                   <div class="group-wrapper">
-                    <div class="menu-item hover-effect">
+                    <!-- <div class="menu-item hover-effect">
                       <span>关于小红书</span>
                       <div class="icon">
                         <ArrowRight style="width: 1em; height: 1em; margin-right: 8px" />
@@ -118,7 +118,7 @@
                           </div>
                         </button>
                       </div>
-                    </div>
+                    </div> -->
                     <div class="menu-item hover-effect" @click="logout">
                       <a href="#"><span>退出登录</span></a>
                     </div>
@@ -278,6 +278,17 @@ updateToolbarVisibility();
 </script>
 
 <style lang="less" scoped>
+.logo-container {
+  display: flex;
+  justify-content: flex-start;
+  align-items: left;
+}
+
+.logo {
+  width: 200px;
+  margin-left: 10px;
+}
+
 a {
   text-decoration: none;
   color: rgba(51, 51, 51, 0.8);
@@ -350,16 +361,16 @@ a {
         .search-input {
           padding: 0 0 0 16px;  // 把输入框的右边空白位置去掉了
           width: 100%;
-          height: 100%;
+          height: 110%;
           font-size: 16px;
           line-height: 120%;
-          color: #333;
-          caret-color: #000;
-          background: rgba(0, 0, 0, 0.03);
-          border-radius: 999px;
-          border: none; // 去除输入框的边框
-          outline: none;  // 去除点击时输入框的边框
-          box-shadow: none;   // 去除输入框的阴影，看起来更简约一点
+          color:  #030403;
+          caret-color: #00561f;
+          background: rgba(0, 86, 31, 0.05);
+          border-radius: 9px;
+          border:  #00561f;; // 去除输入框的边框
+          outline:  #00561f;;  // 去除点击时输入框的边框
+          box-shadow:  #00561f;;   // 去除输入框的阴影，看起来更简约一点
 
         }
 
@@ -371,7 +382,7 @@ a {
           align-items: center;
           justify-content: center;
           height: 100%;
-          color: rgba(51, 51, 51, 0.8);
+          color: rgba(0, 86, 31, 0.8);
 
           .close-icon .search-icon {
             width: 40px;
@@ -380,7 +391,7 @@ a {
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            color: rgba(51, 51, 51, 0.8);
+            color: rgba(0, 86, 31, 0.8);
           }
         }
       }
@@ -441,17 +452,17 @@ a {
         //background-color: rgba(114, 109, 109, 0.88);
 
         li.login-button {
-          background-color: #ff2442;
+          background-color: rgba(0, 86, 31, 0.8);
           display: flex;
           justify-content: center;
           align-items: center;
-          border-radius: 999px;
-          color: white;
+          border-radius: 30px;
+          color: rgb(255, 253, 253);
           padding: 0;
           font-weight: bold;
 
           &:hover {
-            background: #e36e8a; /* 鼠标悬停时背景色变化 */
+            background:rgba(0, 86, 31, 0.6);
             opacity: 1;
           }
 
@@ -463,9 +474,9 @@ a {
         }
 
         .active-channel {
-          background-color: rgba(0, 0, 0, 0.03);
-          border-radius: 999px;
-          color: #333;
+          background-color: rgba(0, 86, 31, 0.3);
+          border-radius: 9px;
+          color:#00561f;
         }
 
         li {
@@ -475,13 +486,14 @@ a {
           align-items: center;
           cursor: pointer;
           margin: 0 16px 12px -42px;  // 调整li的位置
-          color: rgba(51, 51, 51, 0.6);
+          color: rgba(0, 86, 31, 0.6);
 
           .link-wrapper {
             display: flex;
             width: 100%;
             height: 48px;
             align-items: center;
+            color:#00561f;
           }
 
           .message-count {
@@ -498,28 +510,31 @@ a {
         }
 
         .img_avatar {
-          width: 22px;
-          height: 22px;
-          border-radius: 50%;
+          width: 30px;
+          height: 30px;
+          border-radius: 100%;
+          // object-fit: contain;
+          object-fit: cover; /* 保持比例，裁剪图片 */
         }
 
 
 
         .channel {
           font-size: 16px;
-          font-weight: 600;
+          font-weight: 450;
           margin-left: 12px;
-          color: #333;
+          color:rgba(0, 0, 0, 0.7);
         }
       }
 
       .information-container {
         display: inline-block;
         width: 100%;
-        color: #333;
-        font-size: 16px;
+        color:rgba(0, 86, 31, 1);
+        font-size: 18px;
         position: absolute;
         bottom: 35px;   // “更多”的位置
+        left: 10px;
 
         .information-pad {
           z-index: 16;
@@ -528,11 +543,11 @@ a {
 
 
           .container {
-            width: 100%;
+            width: 80%;
             background: #fff;
             box-shadow:
-              0 4px 32px 0 rgba(0, 0, 0, 0.08),
-              0 1px 4px 0 rgba(0, 0, 0, 0.04);
+              0 4px 32px 0 rgba(0, 86, 31, 0.08),
+              0 1px 4px 0 rgba(0, 86, 31, 0.04);
             border-radius: 12px;
 
             .divider {
@@ -544,7 +559,7 @@ a {
             }
 
             .group-wrapper {
-              padding: 4px;
+              padding: 5px;
 
               .group-header {
                 display: flex;
@@ -552,13 +567,14 @@ a {
                 padding: 0 12px;
                 font-weight: 400;
                 height: 32px;
-                color: rgba(51, 51, 51, 0.6);
+                color: rgba(0, 86, 31, 0.6);
                 font-size: 12px;
+                border:#00561f;
               }
 
               .menu-item {
                 height: 40px;
-                color: rgba(51, 51, 51, 0.8);
+                color:  rgba(0, 86, 31, 0.6);
                 font-size: 16px;
                 border-radius: 8px;
                 display: flex;
@@ -567,7 +583,7 @@ a {
                 font-weight: 400;
 
                 .icon {
-                  color: rgba(51, 51, 51, 0.3);
+                  color:  rgba(0, 86, 31, 0.6);
                   margin-left: auto;
                 }
 
@@ -577,7 +593,7 @@ a {
 
                 .multistage-toggle {
                   position: relative;
-                  background: rgba(0, 0, 0, 0.03);
+                  background: rgba(0, 86, 31, 0.6);
                   display: flex();
                   padding: 2px;
                   border-radius: 999px;
@@ -586,15 +602,15 @@ a {
                   .active {
                     background: #fff;
                     box-shadow:
-                      0 2px 8px 0 rgba(0, 0, 0, 0.04),
-                      0 1px 2px 0 rgba(0, 0, 0, 0.02);
-                    color: #333;
+                      0 2px 8px 0  rgba(0, 86, 31, 0.6),
+                      0 1px 2px 0  rgba(0, 86, 31, 0.6);
+                    color: rgba(0, 86, 31, 0.6);
                   }
 
                   .toggle-item {
                     border-radius: 999px;
                     background: transparent;
-                    color: rgba(51, 51, 51, 0.6);
+                    color:  rgba(0, 86, 31, 0.6);
 
                     .icon-wrapper {
                       width: 24px;
@@ -609,6 +625,11 @@ a {
               }
             }
           }
+
+          .container:hover {
+                background-color: rgba(0, 86, 31, 0.4);  /* hover 时背景变为绿色 */
+                color: #fff; /* hover 时文字变为白色 */
+              }
         }
 
         .information-wrapper {
@@ -616,13 +637,13 @@ a {
           user-select: none;
           cursor: pointer;
           position: relative;
-          //margin-top: 100px;
+          //margin-left: 100px;
           height: 48px;
           width: 100%;
           display: flex;
-          font-weight: 600;
+          font-weight: 450;
           align-items: center;
-          border-radius: 999px;
+          border-radius: 9px;
         }
       }
     }
@@ -673,7 +694,7 @@ a {
     color: #777777;
 
     &.active {
-      color: #333333;
+      color: #00561f;
     }
 
     span {

@@ -634,7 +634,7 @@ input:-webkit-autofill {
   background: #e0e0e0;
   border: none;
   outline: none;
-  border-radius: 40px;
+  border-radius: 9px;
   cursor: pointer;
   font-size: 1em;
   color: black;
@@ -642,7 +642,7 @@ input:-webkit-autofill {
 }
 
 .edit-profile-submit:hover {
-  background: var(--buttonColor);
+  background: rgba(0, 86, 31, 0.9);  
 }
 
 .back-guest {
@@ -656,7 +656,7 @@ input:-webkit-autofill {
 }
 
 .back-guest:hover {
-  color: var(--buttonColor);
+  color: rgba(0, 86, 31, 0.9);  
 }
 
 .edit-profile-button {
@@ -697,17 +697,18 @@ input:-webkit-autofill {
 }
 
 .edit-profile-button:hover, .edit-pwd-button:hover {
-  background-color: var(--buttonColor);
-  border-color: var(--buttonColor); /* 修改hover状态下的边框颜色 */
+  background-color: rgba(0, 86, 31, 0.5); 
+  border-color: rgba(0, 86, 31, 0.5);  /* 修改hover状态下的边框颜色 */
 }
 
 .edit-profile-button.active,
 .edit-pwd-button.active {
-  background-color: var(--buttonColor); /* 保持激活状态的颜色 */
-  border-color:  var(--buttonColor);
+  background-color: rgba(0, 86, 31, 0.9);  /* 保持激活状态的颜色 */
+  border-color: rgba(0, 86, 31, 0.9); 
   color:  var(--wordColor); /* 文字颜色 */
 }
 .avatar-uploader {
+  /* object-fit: cover; 保持比例，裁剪图片 */
   position: relative;
   display: inline-block;
 }
@@ -716,6 +717,7 @@ input:-webkit-autofill {
   width: 200px; /* 根据需要调整头像大小 */
   height: 200px;
   border-radius: 50%; /* 圆形头像 */
+  object-fit: cover; /* 保持比例，裁剪图片 */
 }
 
 .avatar-uploader-icon {

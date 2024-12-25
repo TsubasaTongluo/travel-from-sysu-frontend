@@ -526,7 +526,7 @@ const publishNote = async () => {
   
   .add-button {
     padding: 10px 20px;
-    background-color: #f44336;
+    background-color:#00561f;
     color: white;
     border: none;
     border-radius: 5px;
@@ -555,7 +555,7 @@ const publishNote = async () => {
   }
   
   .error-message {
-    color: #f44336;
+    color:#00561f;
     font-size: 14px;
     margin-top: 5px;
   }
@@ -575,7 +575,7 @@ const publishNote = async () => {
     width: fit-content; /* 保持按钮宽度自然调整 */
     padding: 5px 10px;
     font-size: 14px;
-    background-color: #ffcccc;
+    background-color: rgba(0, 86, 31, 0.2);
     border: none;
     border-radius: 5px;
     cursor: pointer;
@@ -587,7 +587,7 @@ const publishNote = async () => {
   }
   
   .dropdown-menu li:hover {
-    background-color: #f44336;
+    background-color: #00561f;
     color: white;
   }
   .tag-container {
@@ -606,7 +606,7 @@ const publishNote = async () => {
     display: inline-flex;
     align-items: center;
     padding: 5px 10px;
-    background-color: #ffcccc;
+    background-color: rgba(0, 86, 31, 0.2);
     border-radius: 5px;
     font-size: 14px;
   }
@@ -617,7 +617,7 @@ const publishNote = async () => {
   }
   
   .add-tag-button {
-    background-color: #b80a0a;
+    background-color:#1f773f;
     padding: 5px 10px;
     border: none;
     border-radius: 5px;
@@ -630,7 +630,7 @@ const publishNote = async () => {
   }
   
   .confirm-add-tag-button {
-    background-color: #f44336;
+    background-color:#00561f;
     color: white;
     border: none;
     padding: 5px 10px;
@@ -654,14 +654,14 @@ const publishNote = async () => {
   
   .recommended-tags .tag-item {
     padding: 5px 10px;
-    background-color: #ffcccc;
+    background-color:rgba(0, 86, 31, 0.2);
     border-radius: 5px;
     font-size: 14px;
     cursor: pointer;
   }
   
   .recommended-tags .tag-item:hover {
-    background-color: #f44336;
+    background-color:#00561f;
     color: white;
   }
   .custom-tag-input-container {
@@ -679,7 +679,7 @@ const publishNote = async () => {
   }
   
   .confirm-add-tag-button {
-    background-color: #f44336;
+    background-color: #00561f;
     color: white;
     border: none;
     padding: 5px 10px;
@@ -711,7 +711,7 @@ const publishNote = async () => {
   }
   
   .find-partner-button.active {
-    background-color: #f44336; /* 激活状态的颜色 */
+    background-color:#00561f; /* 激活状态的颜色 */
   }
   
   .partner-description {
@@ -749,7 +749,7 @@ const publishNote = async () => {
     padding: 10px 20px;
     font-size: 16px;
     color: white;
-    background-color: #f44336; /* 默认红色 */
+    background-color:#00561f;/* 默认红色 */
     border: none;
     border-radius: 5px;
     cursor: pointer;
@@ -757,7 +757,7 @@ const publishNote = async () => {
   }
   
   .publish-note-button:hover {
-    background-color: #d32f2f; /* 悬停时变为深红色 */
+    background-color: #012e12; /* 悬停时变为深红色 */
   }
 
   .loading-overlay {
@@ -777,7 +777,7 @@ const publishNote = async () => {
   width: 50px;
   height: 50px;
   border: 5px solid #f3f3f3;
-  border-top: 5px solid #f44336;
+  border-top: 5px solid #00561f;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }

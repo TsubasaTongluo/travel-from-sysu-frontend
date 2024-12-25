@@ -900,9 +900,9 @@ const closeFullscreen = () => {
 
         .active {
           font-weight: 600;
-          background: rgba(0, 0, 0, 0.03);
-          border-radius: 999px;
-          color: #333;
+          background: rgba(0, 86, 31, 0.3);
+          border-radius: 9px;
+          color: #00561f;
         }
 
         .channel {
@@ -978,7 +978,7 @@ const closeFullscreen = () => {
         margin-bottom: 16px; /* 卡片间距 */
         background: #fff;
         border-radius: 8px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 1px 3px rgba(0, 86, 31, 0.3);
         overflow: hidden;
 
         .image-wrapper {

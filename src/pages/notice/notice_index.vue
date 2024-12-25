@@ -90,45 +90,49 @@ export default {
 <style scoped>
 /* 整体容器样式 */
 .notification-container {
-  margin-top: 60px; /* 或者 padding-top: 60px; */
+  margin-top: 62px; /* 或者 padding-top: 60px; */
 }
 
 /* 顶部栏目样式 */
 .top-bar {
   display: flex;
+  height: 17px;
   justify-content: space-around;
-  background-color: gray;
-  color: white;
+  background-color: rgba(255, 255, 255, 0.8);
+  border-radius: 7px;
+  color:  rgba(0, 86, 31, 0.8);
   padding: 10px 0;
 }
 
 .tab {
   cursor: pointer;
-  padding: 5px 10px;
+  padding: 0px 30px;
 }
 
 .active-tab {
   font-weight: bold;
-  border-bottom: 2px solid white;
+  height: 0px;
+  border-top: 2px solid rgba(0, 86, 31, 0.8);
 }
 
 /* 长横线 */
 .divider-long {
   border: none;
   height: 2px;
-  background-color: #333;
-  margin: 10px 0;
+  background-color: rgba(0, 86, 31, 0.8);
+  margin: 1px 0;
 }
 
 /* 消息列表样式 */
 .notification-list {
-  padding: 10px;
+  font-size: 15px;
+  padding: 5px;
 }
 
 .notification-item {
   display: flex;
   flex-direction: column;
-  padding: 10px 0;
+  padding: 5px 0;
 }
 
 .message-header {
@@ -137,10 +141,10 @@ export default {
 }
 
 .avatar {
-  width: 50px;
-  height: 50px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  margin-right: 10px;
+  margin-right: 15px;
 }
 
 .details {

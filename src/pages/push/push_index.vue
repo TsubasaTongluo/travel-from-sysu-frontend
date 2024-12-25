@@ -155,24 +155,25 @@ const uploadFile = async () => {
 }
 
 .upload-options button {
-  padding: 10px 20px;
+  padding: 12px 30px;
+  /* margin-right:0px; */
   border: none;
-  border-radius: 5px;
-  background-color: #f44336;
+  border-radius: 9px;
+  background-color:rgba(0, 86, 31, 0.7);
   color: white;
   font-size: 14px;
   cursor: pointer;
 }
 
 .upload-options button.active {
-  background-color: #d32f2f;
+  background-color: #00561f;
 }
 
 .upload-area {
   width: 80%;
   height: 300px;
   border: 2px dashed #ddd;
-  border-radius: 8px;
+  border-radius: 9px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -184,12 +185,12 @@ const uploadFile = async () => {
 }
 
 .upload-button {
-  margin-top: 10px;
-  padding: 8px 16px;
-  background-color: #f44336;
+  margin-top: 1px;
+  padding: 10px 20px;
+  border-radius: 9px;
+  background-color:  #00561f;
   color: white;
   border: none;
-  border-radius: 5px;
   cursor: pointer;
 }
 
@@ -233,7 +234,7 @@ const uploadFile = async () => {
   width: 50px;
   height: 50px;
   border: 5px solid #f3f3f3;
-  border-top: 5px solid #f44336;
+  border-top: 5px solid #00561f;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
