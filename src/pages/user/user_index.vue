@@ -194,7 +194,7 @@ getUserInfo();  // 调用此函数以获取用户信息
 // 监听从其他组件发来的 tag 点击事件
 const handleTagClick = (tag: string) => {
   console.log("接收到来自事件总线的标签：", tag);
-  keyword.value = "#" + tag; // 将标签填入搜索框
+  keyword.value = tag; // 将标签填入搜索框
 };
 
 // 监听和清理事件总线

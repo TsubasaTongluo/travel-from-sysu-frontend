@@ -406,86 +406,82 @@ const performSearch = (keyword: string) => {
 };
 
 // 点击 tag 方法
-const handleTagClick = async (tag: string) => {
+const handleTagClick = (tag: string) => {
   isModalVisible.value = false;
-  try {
-    console.log("userid", userId)
-    eventBus.emit("tag-clicked", tag); // 通过事件总线发送 tag
-    const response = await axios.get("/api/note/getNotesByTag", {
+
+  console.log("userid", userId);
+  eventBus.emit("tag-clicked", tag); // 通过事件总线发送 tag
+
+  isLoading.value = true;
+
+  axios
+    .get("/api/note/getNotesByTag", {
       params: {
-        user_id: userId || 0, //记得改
+        user_id: userId || 0, // 记得改
         tag_name: tag,
-        num: 20,         // 请求的条数
-        cursor: '',   // 游标为空
+        num: 20, // 请求的条数
+        cursor: "", // 游标为空
       },
-    });
+    })
+    .then((response) => {
+      if (response.data && response.data.data && response.data.data.notes) {
+        console.log("getnotesbytag", response);
+        const notes = response.data.data.notes;
 
-
-    if (response.data && response.data.data && response.data.data.notes) {
-      console.log("getnotesbytag", response)
-      let notes = response.data.data.notes;
-
-      if (notes === null) {
-        noteList.value = [];
-        console.warn("后端返回了空的笔记列表（null），已转换为空数组");
-
-        // 填充用户名和头像
-        for (let note of notes) {
-          const username = await fetchUsernameById(note.note_creator_id);
-          note.username = username || '未知用户';
-
-          const avatar = await fetchAvatarById(note.note_creator_id);
-          note.avatar = avatar || default_avatar;
-        }
-
-        // 更新笔记列表
-        noteList.value = notes.map((note: any) => ({
-          note_id: note.note_id,
-          title: note.note_title,
-          content: note.note_content,
-          viewCount: note.view_count,
-          tag: note.note_tag_list || [],
-          noteCover: (() => {
-            if (typeof note.note_urls === "string") {
-              try {
-                const parsedUrls = JSON.parse(note.note_urls);
-                if (Array.isArray(parsedUrls)) {
-                  return parsedUrls;
+        if (notes === null) {
+          noteList.value = [];
+          console.warn("后端返回了空的笔记列表（null），已转换为空数组");
+        } else {
+          // 填充用户名和头像
+          const populatedNotes = notes.map((note: any) => ({
+            note_id: note.note_id,
+            title: note.note_title,
+            content: note.note_content,
+            viewCount: note.view_count,
+            tag: note.note_tag_list || [],
+            noteCover: (() => {
+              if (typeof note.note_urls === "string") {
+                try {
+                  const parsedUrls = JSON.parse(note.note_urls);
+                  if (Array.isArray(parsedUrls)) {
+                    return parsedUrls;
+                  }
+                } catch (error) {
+                  console.error("note_urls 字段解析失败：", error);
                 }
-              } catch (error) {
-                console.error("note_urls 字段解析失败：", error);
+                return [];
+              } else if (Array.isArray(note.note_urls)) {
+                return note.note_urls;
               }
               return [];
-            } else if (Array.isArray(note.note_urls)) {
-              return note.note_urls;
-            }
-            return [];
-          })(),
-          creatorId: note.note_creator_id,
-          datetime: note.note_update_time,
-          likeCount: note.like_counts,
-          collection: note.collect_counts,
-          comment_counts: note.comment_counts,
-          username: note.username,
-          avatar: note.avatar,
-          noteType: note.note_type,
-          isLike: note.status.is_like,  // 后端返回这个字段来表示是否已点赞
-          isCollection: note.status.is_collect,  // 后端返回这个字段来表示是否已收藏
-        }));
-      }
-    } else {
-      console.error('后端返回数据格式错误：缺少 notes 字段');
-      noteList.value = [];
-    }
-    isLoading.value = false;
-  } catch (error) {
-    console.error('获取笔记数据失败', error);
-    isLoading.value = false;
-    noteList.value = [];
-  }
-  
-};
+            })(),
+            creatorId: note.note_creator_id,
+            datetime: note.note_update_time,
+            likeCount: note.like_counts,
+            collection: note.collect_counts,
+            comment_counts: note.comment_counts,
+            username: note.username || "未知用户",
+            avatar: note.avatar || default_avatar,
+            noteType: note.note_type,
+            isLike: note.status.is_like, // 后端返回这个字段来表示是否已点赞
+            isCollection: note.status.is_collect, // 后端返回这个字段来表示是否已收藏
+          }));
 
+          noteList.value = populatedNotes;
+        }
+      } else {
+        console.error("后端返回数据格式错误：缺少 notes 字段");
+        noteList.value = [];
+      }
+    })
+    .catch((error) => {
+      console.error("获取笔记数据失败", error);
+      noteList.value = [];
+    })
+    .finally(() => {
+      isLoading.value = false;
+    });
+};
 
 const handleActionClick = (action: string, note: Note) => {
   if (!isLoggedIn()) {
