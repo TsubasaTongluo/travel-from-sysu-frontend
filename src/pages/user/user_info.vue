@@ -204,33 +204,57 @@
           <p class="modal-time">{{ formatDate(selectedNote.note_update_time) }}</p>
           <!-- 分界线 -->
           <hr class="divider" />
-          <!-- 评论区域
-          <div class="comments-placeholder">评论区</div> -->
-          <!-- 评论区域 -->
+          <!-- 评论区 -->
           <div class="comments-placeholder">
+            <p v-if="commentList && commentList.length > 0" class="comment-count">共{{ selectedNote.comment_counts }}条评论</p>
             <div v-if="commentList && commentList.length > 0" class="comments-list">
               <div v-for="comment in commentList" :key="comment.comment_id" class="comment-item">
-                <div class="comment-author-info">
+                <div class="comment-left">
                   <img :src="comment.creator_avatar" class="comment-avatar" />
-                  <span class="comment-username">{{ comment.creator_username }}</span>
                 </div>
-                <p class="comment-content">{{ comment.content }}</p>
-                <p class="comment-time">{{ comment.created_at }}</p>
+                <div class="comment-right">
+                  <span class="comment-username">{{ comment.creator_username }}
+                    <span class="author-comment" v-if="selectedNote?.note_creator_id == comment.creator_id">
+                      作者
+                    </span>
+                    </span>
+                  <p class="comment-content">{{ comment.content }}</p>
+                  <p class="comment-time">{{ formatDate_comment(comment.created_at) }}</p>
+                  <div class="comment-icons">
+                    <span class="comment-icon">
+                      <img
+                          :src="comment.isLiked ? '/icons/like-filled.png' : '/icons/like.png'"
+                          class="icons" />
+                      <i class="iconfont icon-like"></i> {{ comment.comment_like }}
+                    </span>
+                    <span class="comment-icon">
+                      <img src="/icons/comment.png" class="icons" />
+                      <i class="iconfont icon-report"></i>
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div class="no-more-comments">
+                <br />
+                没有更多评论啦
+                <br />
+                <br />
               </div>
             </div>
             <div v-else class="no-comments">暂无评论</div>
           </div>
 
+
           <!-- 底部操作栏 -->
           <div class="modal-footer">
             <!-- 输入栏  todo: 评论接口 -->
             <div class="comment-input-container">
-              <input
-                type="text"
-                class="comment-input"
-                placeholder="说点什么……"
-                v-model="commentContent"
-              />
+              <textarea
+                  class="comment-input"
+                  placeholder="说点什么……"
+                  v-model="commentContent"
+                  @keyup.enter="handleEnter"
+              ></textarea>
               <button
                 v-if="commentContent"
                 class="send-button"
@@ -289,7 +313,7 @@ const router = useRouter();
 const notelist = ref<Array<Note>>([]);
 const commentList = ref<Array<Comment>>([]);
 const commentContent = ref('');
-
+const noMoreComments = ref(false);  // 新增判断是否还有更多评论
 import default_videoCover from "@/assets/default_videoCover.png";
 
 
@@ -517,10 +541,13 @@ const toMain = async (note: any) => {
 };
 
 const closeModal = () => {
-  isModalVisible.value = false;
   isVideoPlaying.value = false;
   currentImageIndex.value = 0;
   document.body.style.overflow = 'auto';  // 关闭弹窗恢复滚动
+  if (preventModalClose) {
+    return;
+  }
+  isModalVisible.value = false;
 };
 
 // 笔记图片切换函数
@@ -541,9 +568,18 @@ const toggleFullscreenImage = () => {
   isFullscreen.value = !isFullscreen.value;
 };
 
+
+let preventModalClose = false;
 // 关闭全屏图片弹窗
 const closeFullscreen = () => {
+  console.log("关闭全屏图片");
   isFullscreen.value = false;
+
+  // 防止主弹窗被同时关闭
+  preventModalClose = true;
+  setTimeout(() => {
+    preventModalClose = false;
+  }, 50); // 设置短暂延迟
 };
 
 const unlike_note = async (note:Note) => {
@@ -883,6 +919,24 @@ const formatDate = (timestamp: number): string => {
   return `${year}年${month}月${day}日 ${hours}:${minutes}:${seconds}`;
 };
 
+function formatDate_comment(input) {
+  // 将输入字符串转为 Date 对象
+  const date = new Date(input);
+
+  // 提取年月日和时间
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0'); // 月份从0开始，需加1
+  const day = date.getDate().toString().padStart(2, '0');
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const seconds = date.getSeconds().toString().padStart(2, '0');
+
+  // 拼接格式化字符串
+  return `${year}年${month}月${day}日 ${hours}:${minutes}:${seconds}`;
+}
+
+
+
 </script>
 
 <style lang="less" scoped>
@@ -1210,6 +1264,7 @@ const formatDate = (timestamp: number): string => {
             white-space: nowrap;
 
             .author-avatar {
+              border: 1px solid #eee;
               margin-right: 6px;
               width: 20px;
               height: 20px;
@@ -1376,7 +1431,38 @@ const formatDate = (timestamp: number): string => {
     display: flex;
     flex-direction: column;
     overflow-y: auto; /* 启用垂直滚动条 */
-    max-height: 100%; /* 限制最大高度，防止内容溢出 */
+    overflow-x: hidden;
+    max-height: calc(100% - 50px); /* 限制最大高度，防止内容溢出 */
+    padding-right: 10px; /* 向右边移动滚动条 */
+
+    /* 默认隐藏滚动条 */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none;
+  }
+
+  /* 针对 WebKit 浏览器（如 Chrome、Edge）隐藏滚动条 */
+  .modal-text::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* 鼠标悬停时显示滚动条 */
+  .modal-text:hover {
+    scrollbar-width: thin; /* Firefox */
+  }
+
+  .modal-text:hover::-webkit-scrollbar {
+    display: block; /* WebKit 浏览器显示滚动条 */
+    width: 6px; /* 设置滚动条宽度 */
+  }
+
+  /* 自定义滚动条样式 */
+  .modal-text::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .modal-text::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.3); /* 滚动条颜色 */
+    border-radius: 3px; /* 滚动条圆角 */
   }
 
 
@@ -1386,6 +1472,7 @@ const formatDate = (timestamp: number): string => {
     margin-bottom: 16px; /* 头像和标题之间的间距 */
 
     .author-avatar {
+      border: 1px solid #eee;
       width: 40px;
       height: 40px;
       border-radius: 50%;
@@ -1445,7 +1532,7 @@ const formatDate = (timestamp: number): string => {
     // 等线字体
     //font-family: "PingFang SC", "Helvetica Neue", "Helvetica", "Arial", "Microsoft YaHei", "\\5FAE软雅黑", "Hiragino Sans GB", "Heiti SC", "WenQuanYi Micro Hei", sans-serif;
     margin-top: 0; /* 标题于内容之间的间距 */
-    margin-bottom: 4px; /* 内容和tag与时间之间的间距 */
+    margin-bottom: -2px; /* 内容和tag与时间之间的间距 */
     white-space: pre-line;
 
     .modal-tag {
@@ -1474,62 +1561,116 @@ const formatDate = (timestamp: number): string => {
     color: #999;
     text-align: center;
     margin-top: 20px;
-    min-height: 150px; /* 最小高度 */
+    min-height: 150px;
+
+    .comment-count{
+      text-align: left;
+      font-size: 14px;
+      color: #8b8b8b;
+      font-weight: bold;
+      margin-top: 0;
+      margin-bottom: 10px;
+    }
 
     .comments-list {
       display: flex;
       flex-direction: column;
-      gap: 16px; /* 每条评论之间的间距 */
-      padding: 0 20px; /* 给评论列表两边留空 */
+      gap: 10px; /* 每条评论之间的间距 */
+      padding: 0;
     }
 
     .comment-item {
-      background-color: #f9f9f9;
+      background-color: #fff;
       border-radius: 8px;
       padding: 12px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* 添加轻微的阴影效果 */
-      display: flex;
-      flex-direction: column;
-      gap: 8px; /* 每个评论部分之间的间距 */
+      display: flex; /* 使用 flex 布局，使头像和评论内容并排 */
+      gap: 12px; /* 左右容器之间的间距 */
+      align-items: flex-start; /* 确保头像和右侧内容垂直对齐 */
     }
 
-    .comment-author-info {
-      display: flex;
-      align-items: center;
-      gap: 12px; /* 头像和用户名之间的间距 */
+    .comment-left {
+      flex-shrink: 0; /* 固定左侧宽度 */
     }
 
     .comment-avatar {
+      border: 1px solid #eee;
+      border-radius: 50%;
       width: 40px;
       height: 40px;
-      border-radius: 50%;
-      object-fit: cover; /* 确保头像不变形 */
+      object-fit: cover;
+    }
+
+    .comment-right {
+      display: flex;
+      flex-direction: column; /* 确保右侧内容垂直排列 */
+      justify-content: flex-start; /* 保持内容顶部对齐 */
+      gap: 0px; /* 用户名、内容和时间之间的间距 */
+      text-align: left;
+      flex: 1; /* 右侧容器占据剩余宽度 */
     }
 
     .comment-username {
-      font-weight: bold;
-      color: #333;
+      //font-weight: bold;
+      font-size: 16px;
+      color: #8b8b8b;
+      margin-bottom: -5px;  // 用户名与评论内容之间的间距
+      display: flex; /* 启用 Flexbox */
+      align-items: center; /* 垂直居中对齐 */
+
+      .author-comment{
+        margin-left: 6px;
+        padding: 2px;
+        border-radius: 8px; /* 圆角 */
+        font-size: 13px;
+        background-color: #f7f7f7;
+        color: #8b8b8b;
+      }
     }
 
     .comment-content {
-      font-size: 14px;
+      font-size: 16px;
       color: #555;
-      margin-bottom: 8px; /* 内容和时间之间的间距 */
+      white-space: normal; /* 允许换行 */
+      overflow-wrap: break-word; /* 长单词会换行 */
+      word-wrap: break-word; /* 兼容旧浏览器的属性 */
+      word-break: break-word; /* 额外确保单词在任何地方都能断开 */
+      margin-bottom: -5px;  // 评论内容与时间之间的间距
     }
 
     .comment-time {
-      font-size: 12px;
-      color: #999;
-      text-align: right;
+      font-size: 13px;
+      color: #8b8b8b;
+      margin-bottom: 2px;
     }
+
+    .comment-icons {
+      display: flex;
+      gap: 16px; /* 图标间的间距 */
+      margin-top: 0px; /* 与时间的间距 */
+    }
+
+    .comment-icon {
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      color: #333;
+      margin-left: -8px;
+    }
+
+    .comment-icon img {
+      width: 30px; /* 图标大小 */
+      height: 30px;
+    }
+
 
     .no-comments {
       font-size: 16px;
       color: #aaa;
       font-style: italic;
     }
-
   }
+
 
   .modal-footer {
     position: absolute;
@@ -1545,45 +1686,42 @@ const formatDate = (timestamp: number): string => {
     border-top: 1px solid #e0e0e0;
     border-radius: 0 0 8px 0;
 
-    // .comment-input {
-    //   flex: 1;
-    //   height: 25px;
-    //   padding: 8px 12px;
-    //   border-radius: 20px;
-    //   margin-right: 20px;
-    //   font-size: 14px;
-    //   background: rgba(0, 0, 0, 0.03);
-    //   border: none; // 去除输入框的边框
-    //   outline: none;  // 去除点击时输入框的边框
-    //   box-shadow: none;   // 去除输入框的阴影，看起来更简约一点
-    // }
 
     .comment-input-container {
       position: relative;
       display: flex;
       align-items: center;
       width: 100%;
+      // gap: 10px; /* 留出按钮与输入框之间的空隙 */
     }
 
     .comment-input {
       width: 100%;
+      //min-height: 25px; /* 设置最小高度 */
+      //max-height: 50px;
       padding: 8px 12px;
       font-size: 14px;
-      border: 1px solid #ccc;
+      //border: 1px solid #ccc;
+      border: none;
       border-radius: 20px;
       outline: none;
       transition: border-color 0.3s ease;
+      background: rgba(0, 0, 0, 0.03);
+      padding-right: 25%; /* 为了避免右侧文字显示，设置 padding-right */
+      resize: none;  /* 禁止手动调整大小 */
+      box-sizing: border-box; /* 确保 padding 不会改变宽度 */
     }
 
     .comment-input:focus {
-      border-color: #007bff; /* 输入框聚焦时的边框颜色 */
+      border: 1px solid;
+      border-color: #333; /* 输入框聚焦时的边框颜色 */
     }
 
     .send-button {
       position: absolute;
       right: 10px;  /* 发送按钮位置靠右 */
       padding: 6px 12px;
-      background-color: #007bff;
+      background-color: #333;
       color: white;
       border: none;
       border-radius: 20px;
@@ -1597,7 +1735,7 @@ const formatDate = (timestamp: number): string => {
     }
 
     .send-button:hover {
-      background-color: #0056b3;
+      background-color: #666;
     }
 
     .send-button:focus {
