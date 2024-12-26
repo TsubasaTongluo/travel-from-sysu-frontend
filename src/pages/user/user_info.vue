@@ -228,10 +228,53 @@
                       <i class="iconfont icon-like"></i> {{ comment.comment_like }}
                     </span>
                     <span class="comment-icon">
-                      <img src="/icons/comment.png" class="icons" />
+                      <img src="/icons/comment.png" class="icons" @click="toRelpy(comment)"/>
                       <i class="iconfont icon-report"></i>
                     </span>
                   </div>
+                </div>
+
+                <!-- 现在是每个一级评论都有这个按钮，不管有没有子评论 -->
+                <!-- TODO: 只有当前评论的二级评论数 >0 时才显示该按钮  但是后端没有存评论的回复数字段-->
+                <!-- 二级评论显示控制按钮 -->
+                <button @click="toggleSecondComments(comment)">
+                  {{ comment.isSecondCommentsVisible ? '收起回复' : '展开回复' }}
+                </button>
+
+                <!-- 这里有一个bug，因为每次发表评论后要重新获取二级评论，所以要先清空对应评论的二级评论列表 -->
+                <!-- 但是清空的那个瞬间会导致 secondComments[comment.comment_id].length 为 0 -->
+                <!-- 所以会出现一瞬间的 “暂无评论” 闪烁 -->
+                <!-- 不知道要怎么修…… -->
+                <!-- planA: 每次发布评论后让后端返回该评论信息，然后我这里不直接清空对应父评论的二级评论列表，而是直接插入新评论 -->
+                <!-- 以及，二级评论的所有信息都获取到了，对于用户所回复的评论id和回复的人的id都在comment.ts中有存 -->
+                <!-- 二级评论区 -->
+                <div v-if="comment.isSecondCommentsVisible" class="second-comments">
+                  <div v-if="secondComments[comment.comment_id]?.length > 0">
+                    <div v-for="secondComment in secondComments[comment.comment_id]" :key="secondComment.comment_id" class="second-comment-item">
+                      <div class="comment-left">
+                        <img :src="secondComment.creator_avatar" class="comment-avatar" />
+                      </div>
+                      <div class="comment-right">
+                        <span class="comment-username">{{ secondComment.creator_username }}</span>
+                        <p class="comment-content">{{ secondComment.content }}</p>
+                        <p class="comment-time">{{ formatDate_comment(secondComment.created_at) }}</p>
+                        <div class="comment-icons">
+                          <span class="comment-icon">
+                            <img
+                                :src="secondComment.isLiked ? '/icons/like-filled.png' : '/icons/like.png'"
+                                class="icons" />
+                            <i class="iconfont icon-like"></i> {{ secondComment.comment_like }}
+                          </span>
+                          <span class="comment-icon">
+                            <img src="/icons/comment.png" class="icons" @click="toRelpy(secondComment)"/>
+                            <i class="iconfont icon-report"></i>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- 没有二级评论 -->
+                  <div v-else class="no-second-comments">暂无回复</div>
                 </div>
               </div>
               <div class="no-more-comments">
@@ -247,6 +290,9 @@
 
           <!-- 底部操作栏 -->
           <div class="modal-footer">
+            <div v-if="isreply" class="replying-info">
+              <p>正在回复: <strong>{{ selectedComment.creator_username }}:</strong> {{ selectedComment.content }}</p>
+            </div>
             <!-- 输入栏  todo: 评论接口 -->
             <div class="comment-input-container">
               <textarea
@@ -258,7 +304,7 @@
               <button
                 v-if="commentContent"
                 class="send-button"
-                @click="comment_note(selectedNote)"
+                @click="isreply? comment_comment(selectedComment,selectedNote) : comment_note(selectedNote)"
               >
                 发送
               </button>
@@ -294,7 +340,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref,watch } from "vue";
+import { reactive, ref,watch } from "vue";
 import { useUserStore } from "@/store/user";
 import { useRoute, useRouter } from "vue-router";
 import defaultAvatar from '@/assets/logo.png';
@@ -312,6 +358,9 @@ const router = useRouter();
 
 const notelist = ref<Array<Note>>([]);
 const commentList = ref<Array<Comment>>([]);
+// 定义一个对象，存储每个一级评论对应的二级评论数组 键值：comment id
+const secondComments = reactive<Record<number, Array<Comment>>>({});
+const isreply = ref(false);
 const commentContent = ref('');
 const noMoreComments = ref(false);  // 新增判断是否还有更多评论
 import default_videoCover from "@/assets/default_videoCover.png";
@@ -459,6 +508,8 @@ async function processComments(res: any): Promise<Comment[]> {
         console.log("获取用户信息失败:", error);
         new_comment.creator_username = "未知用户"; // 默认用户名
       }
+      new_comment.isSecondCommentsVisible = false;
+
       return new_comment;
     }));
 }
@@ -511,6 +562,7 @@ async function get_avatar(uid: number) {
 }
 
 const selectedNote = ref<Note | null>(null); // 单一笔记对象或空值
+const selectedComment = ref<Comment | null>(null);
 
 const isModalVisible = ref(false);
 
@@ -539,6 +591,30 @@ const toMain = async (note: any) => {
   currentImageIndex.value = 0;
   document.body.style.overflow = 'hidden'; // 打开弹窗时禁止滚动
 };
+
+const toRelpy = (comment:Comment) => {
+  isreply.value =true;
+  selectedComment.value = comment;
+}
+
+const toggleSecondComments = async (comment:Comment) => {
+  
+  if(!secondComments[comment.comment_id]){
+    secondComments[comment.comment_id] = [];
+    try {
+        const res = await get_secondcomments(comment.comment_id);
+        if (res.data.code===200){
+          const currentsecondcomment : Comment[] = await processComments(res);
+          secondComments[comment.comment_id].push(...currentsecondcomment)
+        }
+    }catch(error){
+      console.log("获取二级评论出错",error);
+      secondComments[comment.comment_id] = [];
+    }
+  }
+  comment.isSecondCommentsVisible = !comment.isSecondCommentsVisible;
+  // console.log(comment);
+}
 
 const closeModal = () => {
   isVideoPlaying.value = false;
@@ -727,6 +803,39 @@ const comment_note = async (note:Note) =>{
   }
 };
 
+const comment_comment = async (comment:Comment,note:Note) =>{
+  try {
+    const parent_id = comment.parent_id==0? comment.comment_id : comment.parent_id;
+    const res = await reply({
+      note_id:note.note_id,
+      parent_id,
+      reply_id: comment.comment_id,
+      reply_uid:comment.creator_id,
+    });
+    if(res.data.code===200){
+      // TODO：一级评论的回复数+1
+      try {
+        const res = await get_secondcomments(parent_id);
+        if (res.data.code===200){
+          secondComments[parent_id]=[];
+          const currentsecondcomment : Comment[] = await processComments(res);
+          secondComments[parent_id].push(...currentsecondcomment)
+          selectedComment.value=null;
+          commentContent.value='';
+          isreply.value=false;
+        }
+      }catch(error){
+        console.log("获取二级评论出错",error);
+      }
+    }else{
+      console.log("评论失败：",res.data.error);
+    }
+  }catch(error){
+    console.log("评论失败：",error);
+    ElMessage.error('评论失败');
+    secondComments[comment.comment_id]=[];
+  }
+};
 
 async function get_trend(){
   // todo: get trend   一次获取几个帖子(暂定获取所有作品)  分页肿么弄 ww?  session/local storage?
@@ -849,8 +958,19 @@ async function get_firstcomments(note_id:number){
   });
 }
 
+async function get_secondcomments(comment_id:number){
+  return await axios({
+    url:"/api/comment/getSecondLevelCommentsByParentId",
+    method: "GET",
+    params: { comment_id : comment_id },
+    validateStatus: function (status) {
+      return status === 200 || status === 404;
+    }
+    });
+}
+
 async function comment(note_id:number) {
-  // 暂时先只做第一层次的评论
+  // 一级评论
   return await axios({
     url:"/api/comment/publishComment",
     method: "POST",
@@ -863,6 +983,29 @@ async function comment(note_id:number) {
   });
 }
 
+async function reply(data:{
+                            note_id:number,
+                            parent_id:number,
+                            reply_id:number,
+                            reply_uid:number,
+                          }) 
+{
+  const { note_id, parent_id, reply_id, reply_uid } = data;
+  // 二级评论
+  return await axios({
+    url:"/api/comment/publishComment",
+    method: "POST",
+    data: {
+      note_id,
+      creator_id: userStore.getUserInfo()?.uid,
+      parent_id,
+      reply_id,
+      reply_uid,
+      level: 2,
+      content: commentContent.value,
+    },
+  });
+}
 
 const editInfo = () => {
   // todo: 修改个人信息
@@ -1577,6 +1720,23 @@ function formatDate_comment(input) {
       flex-direction: column;
       gap: 10px; /* 每条评论之间的间距 */
       padding: 0;
+    }
+
+    .second-comments {
+      margin-left: 20px;
+      border-left: 2px solid #ccc;
+      padding-left: 10px;
+      margin-top: 10px;
+    }
+
+    .second-comment-item {
+      margin-bottom: 10px;
+    }
+
+    .no-second-comments {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #888;
     }
 
     .comment-item {

@@ -11,4 +11,5 @@ export interface Comment{
     comment_like:number,
     creator_avatar:string,
     creator_username:string,
+    isSecondCommentsVisible:boolean,
 }
