@@ -217,7 +217,7 @@
                     <span class="author-comment" v-if="selectedNote?.note_creator_id == comment.creator_id">
                       作者
                     </span>
-                    </span>
+                  </span>
                   <p class="comment-content">{{ comment.content }}</p>
                   <p class="comment-time">{{ formatDate_comment(comment.created_at) }}</p>
                   <div class="comment-icons">
@@ -232,39 +232,46 @@
                       <i class="iconfont icon-report"></i>
                     </span>
                   </div>
-                </div>
 
-                <!-- 现在是每个一级评论都有这个按钮，不管有没有子评论 -->
-                <!-- TODO: 只有当前评论的二级评论数 >0 时才显示该按钮  但是后端没有存评论的回复数字段-->
-                <!-- 二级评论显示控制按钮 -->
-                <button @click="toggleSecondComments(comment)">
-                  {{ comment.isSecondCommentsVisible ? '收起回复' : '展开回复' }}
-                </button>
 
-                <!-- 这里有一个bug，因为每次发表评论后要重新获取二级评论，所以要先清空对应评论的二级评论列表 -->
-                <!-- 但是清空的那个瞬间会导致 secondComments[comment.comment_id].length 为 0 -->
-                <!-- 所以会出现一瞬间的 “暂无评论” 闪烁 -->
-                <!-- 不知道要怎么修…… -->
-                <!-- planA: 每次发布评论后让后端返回该评论信息，然后我这里不直接清空对应父评论的二级评论列表，而是直接插入新评论 -->
-                <!-- 以及，二级评论的所有信息都获取到了，对于用户所回复的评论id和回复的人的id都在comment.ts中有存 -->
-                <!-- 二级评论区 -->
-                <div v-if="comment.isSecondCommentsVisible" class="second-comments">
-                  <div v-if="secondComments[comment.comment_id]?.length > 0">
-                    <div v-for="secondComment in secondComments[comment.comment_id]" :key="secondComment.comment_id" class="second-comment-item">
+                  <!-- 这里有一个bug，因为每次发表评论后要重新获取二级评论，所以要先清空对应评论的二级评论列表 -->
+                  <!-- 但是清空的那个瞬间会导致 secondComments[comment.comment_id].length 为 0 -->
+                  <!-- 所以会出现一瞬间的 “暂无评论” 闪烁 -->
+                  <!-- 不知道要怎么修…… -->
+                  <!-- planA: 每次发布评论后让后端返回该评论信息，然后我这里不直接清空对应父评论的二级评论列表，而是直接插入新评论 -->
+                  <!-- 以及，二级评论的所有信息都获取到了，对于用户所回复的评论id和回复的人的id都在comment.ts中有存 -->
+                  <!-- 二级评论区 -->
+                  <div class="second-comments">
+                    <div v-for="(secondComment) in visibleSecondComments(comment)" :key="secondComment.comment_id" class="second-comment-item">
                       <div class="comment-left">
-                        <img :src="secondComment.creator_avatar" class="comment-avatar" />
+                        <img :src="secondComment.creator_avatar" class="comment-avatar-second" />
                       </div>
                       <div class="comment-right">
-                        <span class="comment-username">{{ secondComment.creator_username }}</span>
-                        <p class="comment-content">{{ secondComment.content }}</p>
+                        <span class="comment-username">{{ secondComment.creator_username }}
+                          <span class="author-comment" v-if="selectedNote?.note_creator_id == secondComment.creator_id">
+                            作者
+                          </span>
+                        </span>
+                        <!-- 判断是否为二级评论的回复 -->
+                        <p class="comment-content">
+                          <span v-if="secondComment.parent_id !== secondComment.reply_id">
+                            回复
+                            <span class="comment-username" style="display: inline;">
+                              {{ secondComment.reply_username }}
+                            </span> :
+                          </span>
+                          {{ secondComment.content }}
+                        </p>
+
+
                         <p class="comment-time">{{ formatDate_comment(secondComment.created_at) }}</p>
                         <div class="comment-icons">
-                          <span class="comment-icon">
-                            <img
-                                :src="secondComment.isLiked ? '/icons/like-filled.png' : '/icons/like.png'"
-                                class="icons" />
-                            <i class="iconfont icon-like"></i> {{ secondComment.comment_like }}
-                          </span>
+                        <span class="comment-icon">
+                          <img
+                              :src="secondComment.isLiked ? '/icons/like-filled.png' : '/icons/like.png'"
+                              class="icons" />
+                          <i class="iconfont icon-like"></i> {{ secondComment.comment_like }}
+                        </span>
                           <span class="comment-icon">
                             <img src="/icons/comment.png" class="icons" @click="toRelpy(secondComment)"/>
                             <i class="iconfont icon-report"></i>
@@ -273,8 +280,14 @@
                       </div>
                     </div>
                   </div>
-                  <!-- 没有二级评论 -->
-                  <div v-else class="no-second-comments">暂无回复</div>
+                  <!-- 二级评论显示控制按钮 -->
+                  <button
+                      v-if="secondComments[comment.comment_id]?.length > 1"
+                      @click="toggleSecondComments(comment)"
+                      class="second-comment-show-button"
+                  >
+                    {{ comment.isSecondCommentsVisible ? '收起回复' : `展开${secondComments[comment.comment_id].length - 1}条回复` }}
+                  </button>
                 </div>
               </div>
               <div class="no-more-comments">
@@ -288,47 +301,52 @@
           </div>
 
 
+
           <!-- 底部操作栏 -->
           <div class="modal-footer">
-            <div v-if="isreply" class="replying-info">
-              <p>正在回复: <strong>{{ selectedComment.creator_username }}:</strong> {{ selectedComment.content }}</p>
-            </div>
-            <!-- 输入栏  todo: 评论接口 -->
-            <div class="comment-input-container">
-              <textarea
-                  class="comment-input"
-                  placeholder="说点什么……"
-                  v-model="commentContent"
-                  @keyup.enter="handleEnter"
-              ></textarea>
-              <button
-                v-if="commentContent"
-                class="send-button"
-                @click="isreply? comment_comment(selectedComment,selectedNote) : comment_note(selectedNote)"
-              >
-                发送
-              </button>
-            </div>
-            <!-- 点赞收藏评论按钮 -->
-            <div class="action-buttons">
-              <span class="action-button" @click="selectedNote.isLike ? unlike_note(selectedNote) : like_note(selectedNote)" >
-                <img
-                :src="selectedNote?.isLike ? '/icons/like-filled.png' : '/icons/like.png'"
-                class="icons" />
-                <i class="iconfont icon-like"></i> {{ selectedNote.like_counts }}
-              </span>
-              <span class="action-button" @click="selectedNote?.isCollection ? uncollect_note(selectedNote) : collect_note(selectedNote)">
-                <img
-                :src="selectedNote?.isCollection ? '/icons/collection-filled.png' : '/icons/collection.png'"
-                class="icons"
-                 />
-                <i class="iconfont icon-collection"></i> {{ selectedNote.collect_counts }}
-              </span>
-              <span class="action-button">
-                <img src="/icons/comment.png" class="icons"/>
-                <i class="iconfont icon-comment"></i> {{ selectedNote.comment_counts }}
-              </span>
-            </div>
+              <div v-if="isreply" class="replying-info">
+                <p>回复 {{ selectedComment.creator_username }}<br>{{ selectedComment.content }}</p>
+              </div>
+
+            <div class="lower-container">
+              <!-- 输入栏  todo: 评论接口 -->
+                <div class="comment-input-container">
+                  <textarea
+                      class="comment-input"
+                      placeholder="说点什么……"
+                      v-model="commentContent"
+                      @keyup.enter="handleEnter"
+                  ></textarea>
+                  <button
+                    v-if="commentContent"
+                    class="send-button"
+                    @click="isreply? comment_comment(selectedComment,selectedNote) : comment_note(selectedNote)"
+                  >
+                    发送
+                  </button>
+                </div>
+
+                <!-- 点赞收藏评论按钮 -->
+                <div class="action-buttons">
+                  <span class="action-button" @click="selectedNote.isLike ? unlike_note(selectedNote) : like_note(selectedNote)" >
+                    <img
+                    :src="selectedNote?.isLike ? '/icons/like-filled.png' : '/icons/like.png'"
+                    class="icons" />
+                    <i class="iconfont icon-like"></i> {{ selectedNote.like_counts }}
+                  </span>
+                  <span class="action-button" @click="selectedNote?.isCollection ? uncollect_note(selectedNote) : collect_note(selectedNote)">
+                    <img
+                    :src="selectedNote?.isCollection ? '/icons/collection-filled.png' : '/icons/collection.png'"
+                    class="icons"
+                     />
+                    <i class="iconfont icon-collection"></i> {{ selectedNote.collect_counts }}
+                  </span>
+                  <span class="action-button" @click="toRelpyNote">
+                    <img src="/icons/comment.png" class="icons"/>
+                    <i class="iconfont icon-comment"></i> {{ selectedNote.comment_counts }}
+                  </span>
+                </div>
+              </div>
           </div>
         </div>
       </div>
@@ -362,7 +380,6 @@ const commentList = ref<Array<Comment>>([]);
 const secondComments = reactive<Record<number, Array<Comment>>>({});
 const isreply = ref(false);
 const commentContent = ref('');
-const noMoreComments = ref(false);  // 新增判断是否还有更多评论
 import default_videoCover from "@/assets/default_videoCover.png";
 
 
@@ -376,6 +393,40 @@ watch(
       getNoteList(newType);  // 调用 getNoteList 方法，传入新的 type 值
     }
 );
+
+
+const toggleSecondComments = (comment: Comment) => {
+  // 如果没有加载过二级评论，进行加载
+  if (!secondComments[comment.comment_id]) {
+    secondComments[comment.comment_id] = [];
+    fetchSecondComments(comment);
+  }
+
+  // 切换显示状态
+  comment.isSecondCommentsVisible = !comment.isSecondCommentsVisible;
+};
+
+
+const fetchSecondComments = async (comment: Comment) => {
+  try {
+    const res = await get_secondcomments(comment.comment_id);
+    if (res.data.code === 200) {
+      const currentSecondComments: Comment[] = await processComments(res);
+      secondComments[comment.comment_id] = currentSecondComments;
+    }
+  } catch (error) {
+    console.log("获取二级评论出错", error);
+    secondComments[comment.comment_id] = [];
+  }
+};
+
+const visibleSecondComments = (comment: Comment) => {
+  // 如果二级评论数大于1，只显示一条，点击展开后显示所有
+  return secondComments[comment.comment_id]?.length > 1
+      ? secondComments[comment.comment_id].slice(0, comment.isSecondCommentsVisible ? secondComments[comment.comment_id].length : 1)
+      : secondComments[comment.comment_id] || [];
+};
+
 
 const getNoteList = async (type: number) => {
   if (type === 1) {
@@ -484,35 +535,54 @@ async function processNotes(res: any): Promise<Note[]> {
 }
 
 async function processComments(res: any): Promise<Comment[]> {
-  
   const comments = res.data.comments;
   if (!comments) {
     console.log("No comments found");
     return [];
   }
 
-  return await Promise.all(res.data.comments
-    .map(async (comment: any) => {
-      let new_comment: Comment = { ...comment };
-      try {
-        new_comment.creator_avatar = await get_avatar(new_comment.creator_id);
-      } catch (error) {
-        console.log("获取头像失败:", error);
-        new_comment.creator_avatar = defaultAvatar; // 如果头像获取失败，设置为默认头像
-      }
+  // 使用 Promise.all 确保所有异步请求都完成
+  const processedComments = await Promise.all(
+      res.data.comments.map(async (comment: any) => {
+        let new_comment: Comment = { ...comment };
+        new_comment.isSecondCommentsVisible = true; // 默认隐藏二级评论
 
-      try {
-        const user = await get_userinfo(new_comment.creator_id);
-        new_comment.creator_username = user.data.username;
-      } catch (error) {
-        console.log("获取用户信息失败:", error);
-        new_comment.creator_username = "未知用户"; // 默认用户名
-      }
-      new_comment.isSecondCommentsVisible = false;
+        // 获取评论者的头像和用户名
+        try {
+          new_comment.creator_avatar = await get_avatar(new_comment.creator_id);
+        } catch (error) {
+          console.log("获取头像失败:", error);
+          new_comment.creator_avatar = defaultAvatar;
+        }
 
-      return new_comment;
-    }));
+        try {
+          const user = await get_userinfo(new_comment.creator_id);
+          new_comment.creator_username = user.data.username;
+        } catch (error) {
+          console.log("获取用户信息失败:", error);
+          new_comment.creator_username = "未知用户"; // 默认用户名
+        }
+
+        // 如果该评论是二级评论，获取其回复者的用户名
+        if (new_comment.level === 2 && new_comment.reply_uid) {
+          try {
+            const replyUser = await get_userinfo(new_comment.reply_uid);
+            new_comment.reply_username = replyUser.data.username;
+          } catch (error) {
+            console.log("获取回复用户信息失败:", error);
+            new_comment.reply_username = "未知用户"; // 默认用户名
+          }
+        }
+
+        return new_comment;
+      })
+  );
+
+  return processedComments;
 }
+
+
+
 
 
 // 判断文件类型
@@ -578,12 +648,16 @@ const toMain = async (note: any) => {
   try {
     const res = await get_firstcomments(selectedNote.value?.note_id);
     // console.log("1获取评论：",res);
-    if (res.data.code===200){
+    if (res.data.code === 200) {
       commentList.value = await processComments(res);
+      // 遍历每个一级评论，自动加载二级评论
+      commentList.value.forEach(comment => {
+        toggleSecondComments(comment);  // 自动加载该评论的二级评论
+      });
       // console.log(commentList);
     }
-  }catch(error){
-    console.log("获取评论出错",error);
+  } catch (error) {
+    console.log("获取评论出错", error);
     commentList.value = [];
   }
   isModalVisible.value = true;
@@ -592,29 +666,39 @@ const toMain = async (note: any) => {
   document.body.style.overflow = 'hidden'; // 打开弹窗时禁止滚动
 };
 
-const toRelpy = (comment:Comment) => {
-  isreply.value =true;
+
+const toRelpy = (comment: Comment) => {
+  // 切换 isreply 的值
+  isreply.value = !isreply.value;
   selectedComment.value = comment;
+};
+
+const toRelpyNote = (comment:Comment) => {
+  isreply.value =false;
 }
 
-const toggleSecondComments = async (comment:Comment) => {
-  
-  if(!secondComments[comment.comment_id]){
-    secondComments[comment.comment_id] = [];
-    try {
-        const res = await get_secondcomments(comment.comment_id);
-        if (res.data.code===200){
-          const currentsecondcomment : Comment[] = await processComments(res);
-          secondComments[comment.comment_id].push(...currentsecondcomment)
-        }
-    }catch(error){
-      console.log("获取二级评论出错",error);
-      secondComments[comment.comment_id] = [];
-    }
-  }
-  comment.isSecondCommentsVisible = !comment.isSecondCommentsVisible;
-  // console.log(comment);
-}
+// const toggleSecondComments = async (comment: Comment) => {
+//   // 加载二级评论
+//   if (!secondComments[comment.comment_id]) {
+//     secondComments[comment.comment_id] = [];
+//     try {
+//       const res = await get_secondcomments(comment.comment_id);
+//       if (res.data.code === 200) {
+//         const currentSecondComment: Comment[] = await processComments(res);
+//         secondComments[comment.comment_id].push(...currentSecondComment);
+//         // 初始时只显示一条二级评论
+//         comment.isSecondCommentsVisible = true;
+//       }
+//     } catch (error) {
+//       console.log("获取二级评论出错", error);
+//       secondComments[comment.comment_id] = [];
+//     }
+//   } else {
+//     // 展开所有二级评论
+//     comment.isSecondCommentsVisible = true;
+//   }
+// };
+
 
 const closeModal = () => {
   isVideoPlaying.value = false;
@@ -1676,7 +1760,10 @@ function formatDate_comment(input) {
     //font-family: "PingFang SC", "Helvetica Neue", "Helvetica", "Arial", "Microsoft YaHei", "\\5FAE软雅黑", "Hiragino Sans GB", "Heiti SC", "WenQuanYi Micro Hei", sans-serif;
     margin-top: 0; /* 标题于内容之间的间距 */
     margin-bottom: -2px; /* 内容和tag与时间之间的间距 */
-    white-space: pre-line;
+    white-space: normal; /* 允许换行 */
+    overflow-wrap: break-word; /* 长单词会换行 */
+    word-wrap: break-word; /* 兼容旧浏览器的属性 */
+    word-break: break-word; /* 额外确保单词在任何地方都能断开 */
 
     .modal-tag {
       display: inline-block;
@@ -1722,26 +1809,8 @@ function formatDate_comment(input) {
       padding: 0;
     }
 
-    .second-comments {
-      margin-left: 20px;
-      border-left: 2px solid #ccc;
-      padding-left: 10px;
-      margin-top: 10px;
-    }
-
-    .second-comment-item {
-      margin-bottom: 10px;
-    }
-
-    .no-second-comments {
-      margin-top: 10px;
-      font-size: 14px;
-      color: #888;
-    }
 
     .comment-item {
-      background-color: #fff;
-      border-radius: 8px;
       padding: 12px;
       display: flex; /* 使用 flex 布局，使头像和评论内容并排 */
       gap: 12px; /* 左右容器之间的间距 */
@@ -1823,6 +1892,37 @@ function formatDate_comment(input) {
       height: 30px;
     }
 
+    .second-comments {
+      // border-left: 2px solid #ccc;
+      margin-top: 10px;
+    }
+
+    .second-comment-item {
+      margin-bottom: 5px;
+      display: flex; /* 使用 flex 布局，使头像和评论内容并排 */
+      gap: 12px; /* 左右容器之间的间距 */
+      align-items: flex-start; /* 确保头像和右侧内容垂直对齐 */
+    }
+
+
+    .comment-avatar-second {
+      border: 1px solid #eee;
+      border-radius: 50%;
+      width: 25px;
+      height: 25px;
+      object-fit: cover;
+    }
+
+    .second-comment-show-button{
+      margin-left: 32px;
+      background-color: transparent;  /* 去掉背景色，透明 */
+      width: auto;            /* 根据文字内容自适应宽度 */
+      border: none;
+      text-align: left;
+      font-size: 14px;
+      color: #003366;
+    }
+
 
     .no-comments {
       font-size: 16px;
@@ -1838,14 +1938,37 @@ function formatDate_comment(input) {
     right: 0; /* 保证右侧对齐 */
     bottom: 0; /* 保持在底部 */
     background: #fff;
-    padding: 10px 20px; /* 内边距 */
+    padding: 10px 20px 10px 20px; /* 内边距 */
     display: flex;
+    flex-direction: column; /* 使用列布局 */
     justify-content: space-between;
     align-items: center;
     z-index: 10; /* 确保覆盖滚动内容 */
     border-top: 1px solid #e0e0e0;
     border-radius: 0 0 8px 0;
 
+
+    .replying-info {
+      width: 96%;
+      font-size: 14px;
+      color: #666;
+      //background-color: #f4f4f4;
+      border-radius: 5px;
+      //width: 100%;
+      overflow-wrap: break-word; /* 长单词会换行 */
+      word-wrap: break-word; /* 兼容旧浏览器的属性 */
+      word-break: break-word; /* 额外确保单词在任何地方都能断开 */
+      text-align: left;
+      margin-top: -10px;
+    }
+
+
+    .lower-container {
+      display: flex;
+      width: 100%;
+      justify-content: space-between;
+      align-items: center;
+    }
 
     .comment-input-container {
       position: relative;
