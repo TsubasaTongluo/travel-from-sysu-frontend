@@ -1,159 +1,191 @@
 <template>
   <div class="publish-next-container">
-    <!-- 文件预览区域 -->
-    <div class="preview-area">
-      <div
-        v-for="(file, index) in files"
-        :key="index"
-        class="preview-item"
-        :class="{ 'video-preview': isVideoType }"
-      >
-        <!-- 图片预览 -->
-        <img
-          v-if="file.url && !isVideoType"
-          :src="file.url"
-          alt="图片预览"
+    <!-- 左上角返回首页按钮 -->
+    <button class="back-home" @click="goHome">
+      ← 返回首页
+    </button>
+      <!-- 文件预览区域 -->
+      <div class="preview-area">
+        <div
+          v-for="(file, index) in files"
+          :key="index"
+          class="preview-item"
+          :class="{ 'video-preview': isVideoType }"
+        >
+          <!-- 图片预览 -->
+          <img
+            v-if="file.url && !isVideoType"
+            :src="file.url"
+            alt="图片预览"
+          />
+          <!-- 视频预览 -->
+          <video
+            v-if="file.url && isVideoType"
+            :src="file.url"
+            controls
+            alt="视频预览"
+          ></video>
+          <!-- 视频提示文字 -->
+          <p v-if="isVideoType && index === 0" class="video-prompt">
+            仅允许上传一个视频
+          </p>
+          <button class="delete-button" @click="deleteFile(index)">X</button>
+        </div>
+        <!-- Add 按钮 -->
+        <button
+          v-if="!isVideoType || (isVideoType && files.length < 1)"
+          class="add-button"
+          @click="openFileDialog"
+          :disabled="isUploading || isPublishing"
+        >
+          Add
+        </button>
+        <input
+          type="file"
+          :accept="isVideoType ? 'video/*' : 'image/*'"
+          class="hidden-input"
+          ref="fileInput"
+          @change="handleFileSelect"
+          :multiple="!isVideoType"
         />
-        <!-- 视频预览 -->
-        <video
-          v-if="file.url && isVideoType"
-          :src="file.url"
-          controls
-          alt="视频预览"
-        ></video>
-        <button class="delete-button" @click="deleteFile(index)">X</button>
+        <!-- 上传限制提示 -->
+        <p v-if="fileLimitReached" class="limit-message">
+          {{ isVideoType ? "只能上传一个视频。" : "最多只能上传18张图片。" }}
+        </p>
       </div>
-      <!-- Add 按钮 -->
-      <button
-        v-if="!isVideoType || files.length === 0"
-        class="add-button"
-        @click="openFileDialog"
-      >
-        Add
-      </button>
-      <input
-        type="file"
-        :accept="isVideoType ? 'video/*' : 'image/*'"
-        class="hidden-input"
-        ref="fileInput"
-        @change="handleFileSelect"
-      />
-    </div>
-    <!-- 灰色蒙版显示上传状态 -->
-    <div v-if="isUploading || isPublishing" class="loading-overlay">
-      <div class="spinner"></div>
-    </div>
-
-    <!-- 标题输入框 -->
-    <div class="title-input-container">
-      <input
-        type="text"
-        v-model="title"
-        placeholder="输入标题"
-        maxlength="20"
-        @input="checkTitleLength"
-        class="title-input"
-      />
-      <span class="char-count">{{ title.length }}/20</span>
-    </div>
-    <p v-if="isTitleExceeded" class="error-message">标题不能超过20字！</p>
-
-    <!-- 信息输入框 -->
-    <div class="info-input-container">
-      <textarea
-        v-model="info"
-        placeholder="填写更加全面的信息，让更多的人看到你吧！"
-        maxlength="250"
-        @input="checkInfoLength"
-        class="info-input"
-      ></textarea>
-      <span class="char-count">{{ info.length }}/250</span>
-    </div>
-    <p v-if="isInfoExceeded" class="error-message">信息不能超过250字！</p>
-
-    <!-- 标签选择 -->
-    <div class="tag-container">
+      <div v-if="!isVideoType" class="upload-info-text">
+        （最多支持上传18张图片）
+      </div>
+      <div v-if="isVideoType" class="upload-info-text">
+        （最多支持上传1个视频）
+      </div>
+    <!-- 类别选择 -->
+    <div class="category-selection">
       <button class="tag-button" @click="toggleDropdown">
-        {{ selectedTag || "标签" }}
+        {{ selectedCategory || "选择类别⬇️" }}
       </button>
       <ul v-if="isDropdownOpen" class="dropdown-menu">
-        <li v-for="option in tagOptions" :key="option" @click="selectTag(option)">
+        <li v-for="option in tagOptions" :key="option" @click="selectCategory(option)">
           {{ option }}
         </li>
       </ul>
-
-      <!-- 自定义标签功能 -->
-      <div class="custom-tag-container">
-        <button class="add-tag-button" @click="toggleCustomDropdown">
-          {{ isCustomDropdownOpen ? "收起标签" : "+标签" }}
-        </button>
-        <ul v-if="isCustomDropdownOpen" class="custom-dropdown-menu">
-          <li v-for="option in customTagOptions" :key="option" @click="selectCustomTag(option)">
-            {{ option }}
-          </li>
-          <li class="custom-tag-input-container">
-            <input
-              type="text"
-              v-model="customTag"
-              placeholder="输入自定义标签"
-              @keyup.enter="addCustomTag"
-              class="custom-tag-input"
-            />
-            <button @click="addCustomTag" class="confirm-add-tag-button">添加</button>
-          </li>
-        </ul>
-      </div>
-
-      <!-- 已选标签 -->
-      <div class="selected-tags">
-        <span v-for="(tag, index) in customTags" :key="index" class="tag-item">
-          {{ tag }}
-          <span class="delete-tag" @click="removeTag(index)">×</span>
-        </span>
-      </div>
-
-      <!-- 推荐标签部分 -->
-      <div class="recommended-tags">
-        <span class="recommendation-label">推荐标签：</span>
-        <span class="tag-item" v-for="(tag, index) in recommendedTags" :key="index" @click="addRecommendedTag(tag)">
-          {{ tag }}
-        </span>
-      </div>
     </div>
+    <!-- 选择类别后显示的内容 -->
+    <div v-if="selectedCategory" class="content-section">
+      <!-- 标题输入框 -->
+      <div class="title-input-container">
+        <label class="input-label">取个标题吧：</label>
+        <div class="title-wrapper">
+          <span class="category-prefix">【{{ selectedCategory }}】</span>
+          <input
+            type="text"
+            v-model="title"
+            placeholder="输入标题"
+            maxlength="20"
+            @input="checkTitleLength"
+            class="title-input"
+          />
+        </div>
+        <span class="char-count">{{ title.length }}/20</span>
+      </div>
+      <p v-if="isTitleExceeded" class="error-message">标题不能超过20字！</p>
 
-    <!-- 是否找旅伴功能 -->
-    <div class="find-partner-container">
-      <button 
-        class="find-partner-button" 
-        :class="{ active: isFindingPartner }" 
-        @click="toggleFindPartner"
-      >
-        {{ isFindingPartner ? "找旅伴模式" : "找旅伴" }}
-      </button>
-      <div v-if="isFindingPartner" class="partner-description">
+      <!-- 信息输入框 -->
+      <div class="info-input-container">
+        <label class="input-label">说说这次{{ selectedCategory }}吧：</label>
         <textarea
-          v-model="partnerDescription"
-          placeholder="请输入旅伴描述（250字以内）"
+          v-model="info"
+          placeholder="怎么去的？为什么会去？去哪了？吃什么了？我也要吃炫一口两口三口"
           maxlength="250"
-          @input="checkPartnerDescriptionLength"
-          class="partner-input"
+          @input="checkInfoLength"
+          class="info-input"
         ></textarea>
-        <span class="char-count">{{ partnerDescription.length }}/250</span>
-        <p v-if="isPartnerDescriptionExceeded" class="error-message">旅伴描述不能超过250字！</p>
+        <span class="char-count">{{ info.length }}/250</span>
+      </div>
+      <p v-if="isInfoExceeded" class="error-message">信息不能超过250字！</p>
+
+      <!-- 标签选择 -->
+      <div class="tag-container">
+        <!-- 自定义标签功能 -->
+        <div class="custom-tag-container">
+          <button class="add-tag-button" @click="toggleCustomDropdown">
+            {{ isCustomDropdownOpen ? "收起自定义标签" : "+ 标签" }}
+          </button>
+          <ul v-if="isCustomDropdownOpen" class="custom-dropdown-menu">
+            <li v-for="option in customTagOptions" :key="option" @click="selectCustomTag(option)">
+              {{ option }}
+            </li>
+            <li class="custom-tag-input-container">
+              <input
+                type="text"
+                v-model="customTag"
+                placeholder="输入自定义标签"
+                @keyup.enter="addCustomTag"
+                class="custom-tag-input"
+              />
+              <button @click="addCustomTag" class="confirm-add-tag-button">添加</button>
+            </li>
+          </ul>
+        </div>
+
+        <!-- 已选标签 -->
+        <div class="selected-tags">
+          <span v-for="(tag, index) in customTags" :key="index" class="tag-item">
+            {{ tag }}
+            <span class="delete-tag" @click="removeTag(index)">×</span>
+          </span>
+        </div>
+
+        <!-- 推荐标签部分 -->
+        <div class="recommended-tags">
+          <span class="recommendation-label">推荐标签：</span>
+          <span class="tag-item" v-for="(tag, index) in recommendedTags" :key="index" @click="addRecommendedTag(tag)">
+            {{ tag }}
+          </span>
+        </div>
+      </div>
+
+      <!-- 是否找搭子功能 -->
+      <div class="find-partner-container">
+        <button 
+          class="find-partner-button" 
+          :class="{ active: isFindingPartner }" 
+          @click="toggleFindPartner"
+        >
+          {{ isFindingPartner ? "找搭子模式" : "找搭子" }}
+        </button>
+        <div v-if="isFindingPartner" class="partner-description">
+          <textarea
+            v-model="partnerDescription"
+            placeholder="请输入您对此次出行的搭子需求（250字以内）"
+            maxlength="250"
+            @input="checkPartnerDescriptionLength"
+            class="partner-input"
+          ></textarea>
+          <span class="char-count">{{ partnerDescription.length }}/250</span>
+          <p v-if="isPartnerDescriptionExceeded" class="error-message">旅伴描述不能超过250字！</p>
+        </div>
+      </div>
+
+      <!-- 发布笔记按钮 -->
+      <div class="publish-note-container">
+        <button class="publish-note-button" @click="publishNote" :disabled="isPublishing || isUploading">
+          发布笔记
+        </button>
       </div>
     </div>
 
-    <!-- 发布笔记按钮 -->
-    <div class="publish-note-container">
-      <button class="publish-note-button" @click="publishNote">发布笔记</button>
+    <!-- 灰色蒙版显示上传状态 -->
+    <div v-if="isUploading || isPublishing" class="loading-overlay">
+      <div class="spinner"></div>
     </div>
   </div>
 </template>
 
 <script lang="ts" setup>
 import { useUserStore } from '@/store/user';
-import { ref, onMounted } from "vue";
-import { useRoute } from "vue-router";
+import { ref, onMounted,computed } from "vue";
+import { useRoute , onBeforeRouteLeave } from "vue-router";
 import { useRouter } from "vue-router";
 import axios from "axios";
 
@@ -175,17 +207,18 @@ const isInfoExceeded = ref(false); // 是否超出字数
 
 // 标签选择状态
 const isDropdownOpen = ref(false); // 三选一标签下拉栏是否打开
-const tagOptions = ["旅行", "外出", "返乡"]; // 标签选项
-const selectedTag = ref<string | null>(null); // 已选择的三选一标签
+const tagOptions = ["旅游", "活动外出", "返乡记录"]; // 标签选项
+const selectedCategory = ref<string | null>(null); // 已选择的类别
+// const selectedTag = ref<string | null>(null); // 已选择的三选一标签
 
 // 自定义标签功能状态
 const isCustomDropdownOpen = ref(false); // 自定义标签下拉栏是否打开
 const customTag = ref<string>(""); // 输入的自定义标签内容
-const customTagOptions = ["城市", "乡村", "草原", "雪地"]; // 自定义标签选项
+// const customTagOptions = ["城市", "乡村", "草原", "雪地"]; // 自定义标签选项
 const customTags = ref<string[]>([]); // 已选自定义标签列表
 
 // 推荐标签
-const recommendedTags = ref<string[]>(["上海", "北京", "广州", "深圳"]); // 推荐标签列表
+const recommendedTags = ref<string[]>([]); // 推荐标签列表
 
 // 是否处于找旅伴模式
 const isFindingPartner = ref(false); 
@@ -199,6 +232,28 @@ const isPublishing = ref(false); // 发布状态
 
 // 视频类型检查
 const isVideoType = ref(true); // 是否为视频笔记类型
+
+// 推荐标签内容根据选择的类别动态更新
+const updateRecommendedTags = (category: string) => {
+  if (category === "旅游") {
+    recommendedTags.value = ["市内", "省内", "国内", "国外"];
+  } else if (category === "返乡记录") {
+    recommendedTags.value = ["回深圳", "回新疆", "火车","飞机"];
+  } else if (category === "活动外出") {
+    recommendedTags.value = ["留学/交换", "学术会议", "社团活动", "学院活动"];
+  } else {
+    recommendedTags.value = []; // 如果没有选择或选择其他类别，则清空推荐标签
+  }
+};
+
+// 文件上传限制提示
+const fileLimitReached = computed(() => {
+  if (isVideoType.value) {
+    return files.value.length >= 1;
+  } else {
+    return files.value.length >= 18;
+  }
+});
 
 // 初始化时从路由参数加载文件
 onMounted(() => {
@@ -227,6 +282,53 @@ onMounted(() => {
   console.log("isVideoType on init:", isVideoType.value);
 });
 
+// 在路由离开时删除已上传的文件
+onBeforeRouteLeave(async (to, from) => {
+  if (files.value.length === 0) {
+    console.log("没有文件需要删除，允许路由跳转");
+    return;
+  }
+
+  // 提示用户
+  const confirmLeave = confirm("确定要离开此页面并删除已上传的文件吗？");
+  if (!confirmLeave) {
+    // 阻止路由跳转
+    return false;
+  }
+
+  // 复制当前的 note_urls
+  const tempUrls = [...note_urls.value];
+
+  // 创建删除请求的 Promise 数组
+  const deletePromises = tempUrls.map((url) => {
+    return axios.get("/api/note/deleteUploadedFile", {
+      params: { file_url: url },
+    }).then(response => {
+      if (response.status === 200 && response.data.status === "成功") {
+        console.log(`文件删除成功: ${url}`);
+      } else {
+        console.error(`文件删除失败: ${url}, 错误: ${response.data.error || "未知错误"}`);
+      }
+    }).catch(error => {
+      console.error(`删除文件请求失败: ${url}`, error);
+    });
+  });
+
+  // 等待所有删除请求完成
+  await Promise.all(deletePromises);
+
+  // 清空前端的文件列表
+  files.value = [];
+  note_urls.value = [];
+
+  console.log("所有文件删除完成，允许路由跳转");
+});
+
+// 返回首页
+const goHome = async () => {
+  router.push("/dashboard"); // 根据实际首页路由修改
+};
+
 // 打开文件选择框
 const openFileDialog = () => {
   const fileInput = document.querySelector(".hidden-input") as HTMLInputElement;
@@ -244,38 +346,6 @@ const handleFileSelect = async (event: Event): Promise<void> => {
 
 
 // 上传文件到 OSS
-// const uploadFile = async (file: File) => {
-//   const formData = new FormData();
-//   formData.append("file", file);
-
-//   isUploading.value = true; // 显示上传状态
-
-//   try {
-//     const response = await axios.post("/api/note/uploadNotePic", formData, {
-//       headers: { "Content-Type": "multipart/form-data" },
-//     });
-
-//     if (response.status === 200 && response.data.status === "成功") {
-//       const uploadedUrl = response.data.url;
-
-//       // 如果是视频类型，确保只保留一个文件
-//       if (isVideoType.value) {
-//         files.value = [{ file: null, url: uploadedUrl }];
-//         note_urls.value = [uploadedUrl];
-//       } else {
-//         files.value.push({ file: null, url: uploadedUrl });
-//         note_urls.value.push(uploadedUrl);
-//       }
-//     } else {
-//       throw new Error(response.data.error || "上传失败");
-//     }
-//   } catch (error) {
-//     console.error("文件上传失败：", error);
-//     alert("上传失败，请重试！");
-//   } finally {
-//     isUploading.value = false; // 隐藏上传状态
-//   }
-// };
 const uploadFile = async (file: File) => {
   const formData = new FormData();
   formData.append("file", file);
@@ -358,10 +428,12 @@ const toggleDropdown = () => {
   isDropdownOpen.value = !isDropdownOpen.value;
 };
 
-// 选择三选一标签
-const selectTag = (option: string) => {
-  selectedTag.value = option;
+
+// 选择类别
+const selectCategory = (option: string) => {
+  selectedCategory.value = option;
   isDropdownOpen.value = false;
+  updateRecommendedTags(option);
 };
 
 // 切换自定义标签下拉栏
@@ -411,20 +483,27 @@ const checkPartnerDescriptionLength = () => {
 const publishNote = async () => {
   console.log("note_urls:"+note_urls.value);
   // 校验必填项
-  if (title.value.length === 0 || info.value.length === 0 || note_urls.value.length === 0) {
-    alert("标题、信息和图片都是必填项！");
+  if (
+    !selectedCategory.value ||
+    title.value.length === 0 ||
+    info.value.length === 0 ||
+    note_urls.value.length === 0
+  ) {
+    alert("类别、标题、信息和文件都是必填项！");
     return;
   }
 
   // 显示发布状态
   isPublishing.value = true;
 
+  title.value = `[${selectedCategory.value}] ` + title.value;
+
   // 创建 FormData 实例
   const formData = new FormData();
   formData.append('note_title', title.value);
   formData.append('note_content', info.value);
   formData.append('note_tag_list', [...customTags.value].join(','));
-  formData.append('note_type', selectedTag.value || '');
+  formData.append('note_type', selectedCategory.value || '');
   formData.append('note_creator_id', userId);
   formData.append('note_urls',JSON.stringify(note_urls.value));
 
@@ -441,6 +520,7 @@ const publishNote = async () => {
 
     if (response.status === 200) {
       alert('发布成功！');
+      files.value.length = 0;
       // 跳转到个人主页
       router.push('/userInfo');
     } else {
@@ -456,12 +536,55 @@ const publishNote = async () => {
 </script>
 
 <style scoped>
+
+  .content-section {
+    width: 100%;
+    text-align: left; /* 确保所有文本都左对齐 */
+    margin-left: 100px;
+  }
+  .input-label{
+    position: relative;
+    font-size: 15px;
+    color: #005620ad;
+    font-weight: bold;
+    background: none;
+    border: none;
+    margin-bottom: 80px;
+  }
+  .upload-info-text{
+    font-size: 15px;
+    color: #005620ad;
+    font-weight: thin;
+    background: none;
+    border: none;
+    padding: 0;
+  }
   .publish-next-container {
     display: flex;
     flex-direction: column;
     align-items: center;
     padding: 20px;
     gap: 20px;
+    position: relative;
+  }
+
+
+  /* 左上角返回首页按钮 */
+  .back-home {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    cursor: pointer;
+    font-size: 16px;
+    color: #00561f;
+    font-weight: bold;
+    background: none;
+    border: none;
+    padding: 0;
+  }
+
+  .back-home:hover {
+    color: #003f12;
   }
   
   .preview-area,
@@ -472,6 +595,7 @@ const publishNote = async () => {
   }
   
   .preview-area {
+    margin-top: 30px;
     padding: 10px;
     border: 1px solid #ddd;
     border-radius: 8px;
@@ -519,17 +643,26 @@ const publishNote = async () => {
     background-color: #474141;
     color: white;
     border: none;
-    border-radius: 50%;
+    border-radius: 20%;
     cursor: pointer;
     font-size: 12px;
   }
   
   .add-button {
     padding: 10px 20px;
-    background-color:#00561f;
+    background-color:rgba(0, 86, 31, 0.9);
     color: white;
     border: none;
-    border-radius: 5px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .add-button:hover {
+    padding: 10px 20px;
+    background-color:rgba(0, 86, 31, 1);
+    color: white;
+    border: none;
+    border-radius: 8px;
     cursor: pointer;
     font-size: 14px;
   }
@@ -537,19 +670,53 @@ const publishNote = async () => {
   .hidden-input {
     display: none;
   }
-  
-  .title-input,
-  .info-input {
-    width: 100%;
-    padding: 10px;
-    font-size: 16px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-  }
+
+.title-input-container,
+.info-input-container,
+.tag-container,
+.find-partner-container,
+.publish-note-container {
+  width: 100%;
+  margin-bottom: 20px; /* 各部分之间的间距 */
+}
+
+.title-wrapper,
+.info-input-container textarea,
+.partner-description textarea {
+  width: 100%;
+}
+
+.title-wrapper {
+  display: flex;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.category-prefix {
+  margin-top:5px;
+  margin-right: 8px;
+  font-size: 16px;
+  color: #1c1a1aad;
+  font-weight: thin;
+
+}
+
+.title-input,
+.info-input,
+.partner-input,
+.custom-tag-input {
+  width: 100%;
+  padding: 8px;
+  margin-top: 4px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
   
   .char-count {
     text-align: right;
     margin-top: 5px;
+    margin-left: 10px;
     font-size: 14px;
     color: #666;
   }
@@ -560,36 +727,48 @@ const publishNote = async () => {
     margin-top: 5px;
   }
   
+  .tag-button {
+    width: fit-content; /* 保持按钮宽度自然调整 */
+    padding: 10px 17px;
+    font-size: 14px;
+    background-color: rgba(0, 86, 31, 0.2);
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+
   .dropdown-menu {
     margin-top: 10px;
     list-style: none;
     padding: 0;
     border: 1px solid #ccc;
-    border-radius: 5px;
+    border-radius: 10px;
     background-color: #f9f9f9;
     width: fit-content; /* 修改为与按钮宽度一致 */
     max-width: 100%;
+    position: relative; /* 使菜单浮动 */
+  margin-left: 5px; /* 将菜单右对齐 */
+  z-index: 10; /* 确保菜单在其他元素之上 */
   }
-  
-  .tag-button {
-    width: fit-content; /* 保持按钮宽度自然调整 */
-    padding: 5px 10px;
-    font-size: 14px;
-    background-color: rgba(0, 86, 31, 0.2);
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-  }
-  
   .dropdown-menu li {
+    font-size: 14px;
     padding: 10px;
     cursor: pointer;
   }
   
   .dropdown-menu li:hover {
     background-color: #00561f;
+    border-radius: 10px;
     color: white;
   }
+
+  .recommendation-label{
+    font-size: 15px;
+    color: #005620ad;
+    font-weight: bold;
+    margin-top: 5px;
+  }
+
   .tag-container {
     display: flex;
     flex-direction: column;
@@ -605,9 +784,9 @@ const publishNote = async () => {
   .tag-item {
     display: inline-flex;
     align-items: center;
-    padding: 5px 10px;
+    padding: 8px 10px;
     background-color: rgba(0, 86, 31, 0.2);
-    border-radius: 5px;
+    border-radius: 10px;
     font-size: 14px;
   }
   
@@ -617,24 +796,25 @@ const publishNote = async () => {
   }
   
   .add-tag-button {
-    background-color:#1f773f;
-    padding: 5px 10px;
+    background-color: rgba(0, 86, 31, 0.9);
+    color:white;
+    padding: 8px 10px;
     border: none;
-    border-radius: 5px;
+    border-radius: 10px;
     cursor: pointer;
   }
   
   .custom-tag-input-container {
     display: flex;
-    gap: 8px;
+    gap: 0px;
   }
   
   .confirm-add-tag-button {
     background-color:#00561f;
     color: white;
     border: none;
-    padding: 5px 10px;
-    border-radius: 5px;
+    padding: 8px 10px;
+    border-radius: 10px;
     cursor: pointer;
   }
   .publish-next-container {
@@ -648,32 +828,32 @@ const publishNote = async () => {
   /* 样式与之前类似，新增推荐标签部分 */
   .recommended-tags {
     display: flex;
-    gap: 8px;
+    gap: 10px;
     margin-top: 15px;
   }
   
   .recommended-tags .tag-item {
-    padding: 5px 10px;
+    padding: 8px 10px;
     background-color:rgba(0, 86, 31, 0.2);
-    border-radius: 5px;
+    border-radius: 10px;
     font-size: 14px;
     cursor: pointer;
   }
   
   .recommended-tags .tag-item:hover {
-    background-color:#00561f;
+    background-color:rgba(0, 86, 31, 0.9);
     color: white;
   }
   .custom-tag-input-container {
     display: flex;
     gap: 8px;
     padding: 5px;
+    margin-left: -45px;
   }
   
   .custom-tag-input {
-  
     width: 150px; /* 设置固定宽度 */
-    padding: 5px;
+    padding: 8px;
     border: 1px solid #ccc;
     border-radius: 5px;
   }
@@ -682,14 +862,9 @@ const publishNote = async () => {
     background-color: #00561f;
     color: white;
     border: none;
-    padding: 5px 10px;
-    border-radius: 5px;
+    padding: 7px 10px;
+    border-radius: 10px;
     cursor: pointer;
-    .recommendation-label {
-    font-size: 14px; /* 调整字体大小 */
-    color: black; /* 设置为黑色 */
-    margin-right: 8px; /* 给文字与后续内容之间添加间距 */
-  }
   }
   .find-partner-container {
     display: flex;
@@ -700,18 +875,19 @@ const publishNote = async () => {
   }
   
   .find-partner-button {
-    width: 20%; /* 保证按钮宽度和+标签一致 */
+    width: 20%; 
     padding: 10px 0; /* 设置上下内边距 */
     font-size: 14px;
     color: white;
-    background-color: grey;
+    background-color: rgba(128, 128, 128, 0.701);
     border: none;
-    border-radius: 5px;
+    border-radius: 10px;
     cursor: pointer;
+    margin-bottom: 8px;
   }
   
   .find-partner-button.active {
-    background-color:#00561f; /* 激活状态的颜色 */
+    background-color:rgba(0, 86, 31, 0.9);
   }
   
   .partner-description {
@@ -746,18 +922,19 @@ const publishNote = async () => {
   }
   
   .publish-note-button {
-    padding: 10px 20px;
+    padding: 10px 30px;
     font-size: 16px;
     color: white;
-    background-color:#00561f;/* 默认红色 */
+    background-color:rgba(0, 86, 31, 0.9);
     border: none;
-    border-radius: 5px;
+    border-radius: 10px;
     cursor: pointer;
     transition: background-color 0.3s; /* 平滑过渡效果 */
+    margin-left: -80px;
   }
   
   .publish-note-button:hover {
-    background-color: #012e12; /* 悬停时变为深红色 */
+    background-color:rgba(0, 86, 31, 1);
   }
 
   .loading-overlay {

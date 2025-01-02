@@ -409,7 +409,7 @@ a {
       font-size: 16px;
       flex: 1;
       height: 100%;
-      caret-color: #ff2442; /* 光标颜色 */
+      caret-color: rgba(0, 86, 31, 0.9);   /* 光标颜色 */
       color: #333;
       border: none;
       outline: none;
@@ -423,13 +423,13 @@ a {
 
     /* 输入框聚焦时的边框高亮 */
     .phone:focus-within, .auth-code:focus-within {
-      border-color: #f68d9b;
+      border-color:  rgba(0, 86, 31, 0.3);  
       box-shadow: 0 0 5px rgba(247, 45, 72, 0.2);
     }
 
     .code-button {
       font-size: 16px;
-      color: #ff2442;
+      color:  rgba(0, 86, 31, 0.9);  
       cursor: pointer;
       opacity: 0.5;
     }
@@ -439,7 +439,7 @@ a {
       margin-top: 8px;
       height: 16px;
       line-height: 16px;
-      color: #ff2442; /* 错误提示颜色 */
+      color:  rgba(0, 86, 31, 0.9);  
       font-size: 12px;
       font-weight: 400;
       text-align: center;
@@ -448,7 +448,7 @@ a {
     .submit {
       margin-top: 1px;
       height: 48px;
-      background: #ff2442;
+      background:  rgba(0, 86, 31, 0.9);  
       color: #fff;
       opacity: 0.9;
       border-radius: 999px;
@@ -461,12 +461,12 @@ a {
     }
 
     .submit:hover {
-      background: #e36e8a; /* 鼠标悬停时背景色变化 */
+      background: rgba(0, 86, 31, 0.9);   /* 鼠标悬停时背景色变化 */
       opacity: 1;
     }
 
     .submit:disabled {
-      background: #fac5d0;
+      background:  rgba(0, 86, 31, 0.4);  
       cursor: not-allowed;
     }
 

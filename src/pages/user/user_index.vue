@@ -32,14 +32,14 @@
               <House style="width: 1em; height: 1em; margin-right: 8px" /><span class="channel">发现</span>
             </a>
           </li>
-          <li :class="{ 'active-channel': isActiveRoute('/followTrend') }" @click="navigateTo('/followTrend')">
+          <li :class="{ 'active-channel': isActiveRoute('/followTrend'), 'disabled': !isLoggedIn  }" @click="isLoggedIn ? navigateTo('/followTrend') : null">
             <Star style="width: 1em; height: 1em; margin-right: 8px" /><span class="channel"> 动态</span>
           </li>
-          <li :class="{ 'active-channel': isActiveRoute('/notice') }" @click="navigateTo('/notice')">
+          <li :class="{ 'active-channel': isActiveRoute('/notice'), 'disabled': !isLoggedIn  }" @click="isLoggedIn ? navigateTo('/notice'):null">
             <Bell style="width: 1em; height: 1em; margin-right: 8px" />
             <span class="channel"> 消息</span>
           </li>
-          <li :class="{ 'active-channel': isActiveRoute('/push') }" @click="navigateTo('/push')">
+          <li :class="{ 'active-channel': isActiveRoute('/push'), 'disabled': !isLoggedIn  }" @click="isLoggedIn ? navigateTo('/push'):null">
             <CirclePlus style="width: 1em; height: 1em; margin-right: 8px" /><span class="channel"> 发布</span>
           </li>
           <!-- <li class="login-button" @click="login">
@@ -119,9 +119,11 @@
                         </button>
                       </div>
                     </div> -->
-                    <div class="menu-item hover-effect" @click="logout">
-                      <a href="#"><span>退出登录</span></a>
+                    <div class="menu-item hover-effect" @click="isLoggedIn ? handleLogout() : showLogin()">
+                      <a href="#"><span>{{ isLoggedIn ? '退出登录' : '登录' }}</span></a>
                     </div>
+
+                    <Login v-show="loginShow" @close-login="closeLogin" />
                   </div>
                 </div>
               </div>
@@ -146,15 +148,15 @@
       <House style="width: 24px; height: 24px" />
       <span>发现</span>
     </button>
-    <button @click="navigateTo('/followTrend')" :class="{ active: isActiveRoute('/followTrend') }">
+    <button @click="navigateTo('/followTrend')" :class="{ active: isActiveRoute('/followTrend'), 'disabled': !isLoggedIn  }">
       <Star style="width: 24px; height: 24px" />
       <span>动态</span>
     </button>
-    <button @click="navigateTo('/notice')" :class="{ active: isActiveRoute('/notice') }">
+    <button @click="navigateTo('/notice')" :class="{ active: isActiveRoute('/notice'), 'disabled': !isLoggedIn  }">
       <Bell style="width: 24px; height: 24px" />
       <span>消息</span>
     </button>
-    <button @click="navigateTo('/push')" :class="{ active: isActiveRoute('/push') }">
+    <button @click="navigateTo('/push')" :class="{ active: isActiveRoute('/push') , 'disabled': !isLoggedIn }">
       <CirclePlus style="width: 24px; height: 24px" />
       <span>发布</span>
     </button>
@@ -167,7 +169,7 @@ import { useRouter, useRoute } from "vue-router";
 import Login from "@/pages/user/user_login.vue";
 import { useUserStore } from "@/store/user";
 import eventBus from "@/utils/eventBus";
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, onMounted, onUnmounted ,computed} from "vue";
 
 // 初始化loginShow为false，弹窗默认隐藏
 const loginShow = ref(false);
@@ -178,6 +180,40 @@ const padShow = ref(false);
 const userStore = useUserStore();
 
 const userInfo = ref<any>(null);  // 初始值为null，表示未登录
+
+// 显示登录界面
+const showLogin = () => {
+  loginShow.value = true;
+};
+
+// 关闭登录界面
+const closeLogin = () => {
+  loginShow.value = false;
+  // 更新用户信息
+  userInfo.value = userStore.getUserInfo();
+};
+
+// 退出登录并刷新页面
+const handleLogout = () => {
+  userStore.loginOut(); // 执行退出登录逻辑
+  userInfo.value = null; // 清空用户信息
+  router.push("/dashboard"); // 导航到默认界面
+};
+
+// 用户登录状态
+const isLoggedIn = computed(() => {
+  const userInfo = userStore.getUserInfo();
+  return userInfo && userInfo.uid != null;
+});
+
+// 导航函数，检查登录状态
+const handleNavigation = (path: string) => {
+  if (!isLoggedIn.value) {
+    alert("请先登录！");
+    return;
+  }
+  router.push(path);
+};
 
 // 在获取用户信息时，先检查是否已登录
 const getUserInfo = () => {
@@ -278,6 +314,23 @@ updateToolbarVisibility();
 </script>
 
 <style lang="less" scoped>
+.channel-list li.disabled,
+.bottom-toolbar button.disabled {
+  cursor: not-allowed;
+  color: #ccc;
+}
+
+.channel-list li.disabled:hover,
+.bottom-toolbar button.disabled:hover {
+  background: transparent;
+  color: #ccc;
+}
+
+.channel-list li.disabled .link-wrapper,
+.bottom-toolbar button.disabled {
+  pointer-events: none;
+}
+
 .logo-container {
   display: flex;
   justify-content: flex-start;
@@ -525,6 +578,19 @@ a {
           margin-left: 12px;
           color:rgba(0, 0, 0, 0.7);
         }
+      }
+      .channel-list li.disabled {
+        cursor: not-allowed;
+        color: #ccc;
+      }
+
+      .channel-list li.disabled:hover {
+        background: transparent;
+        color: #ccc;
+      }
+
+      .channel-list li.disabled .link-wrapper {
+        pointer-events: none; /* 禁止内部元素的事件 */
       }
 
       .information-container {

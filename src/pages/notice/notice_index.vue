@@ -83,7 +83,7 @@ export default {
     filteredNotifications() {
       return this.notifications.filter((message) => message.type === this.activeTab);
     },
-  },
+  }
 };
 </script>
 
