@@ -31,8 +31,8 @@
             <!-- 如果是视频类型，显示视频封面 -->
             <img
                 v-if="isVideo(item.noteCover[0])"
-                :src=default_videoCover
-                :style="{ width: '100%', height: 'auto', borderRadius: '8px' }"
+                :src="(item.noteCover && item.noteCover[1]) ? item.noteCover[1] : default_videoCover"
+                :style="{ maxWidth: '210px', borderRadius: '8px' }"
                 fit="contain"
                 @click="toMain(item)"
             />

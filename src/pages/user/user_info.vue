@@ -103,7 +103,7 @@
         >
           <div class="image-wrapper">
             <img
-                :src="item.noteType === 'video' ? default_videoCover : item.note_URLs[0]"
+                :src="item.noteType === 'video' ? ((item.note_URLs && item.note_URLs[1]) ? item.note_URLs[1] : default_videoCover) : item.note_URLs[0]"
                 :style="{
                 width: '100%',
                 height: 'auto',

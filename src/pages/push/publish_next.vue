@@ -12,24 +12,27 @@
           class="preview-item"
           :class="{ 'video-preview': isVideoType }"
         >
-          <!-- 图片预览 -->
-          <img
-            v-if="file.url && !isVideoType"
-            :src="file.url"
-            alt="图片预览"
-          />
-          <!-- 视频预览 -->
-          <video
-            v-if="file.url && isVideoType"
-            :src="file.url"
-            controls
-            alt="视频预览"
-          ></video>
-          <!-- 视频提示文字 -->
-          <p v-if="isVideoType && index === 0" class="video-prompt">
-            仅允许上传一个视频
-          </p>
-          <button class="delete-button" @click="deleteFile(index)">X</button>
+            <!-- 图片预览 -->
+            <img
+              v-if="file.url && !isVideoType"
+              :src="file.url"
+              alt="图片预览"
+            />
+            <!-- 视频预览 -->
+            <video
+              v-if="file.url && isVideoType"
+              :src="file.url"
+              controls
+              alt="视频预览"
+            ></video>
+            <button class="delete-button" @click="deleteFile(index)">X</button>
+            <!-- 封面预览 -->
+            <!-- <img
+              v-if="isVideoType && file.coverUrl"
+              :src="file.coverUrl"
+              alt="封面预览"
+              class="cover-preview"
+            />           -->
         </div>
         <!-- Add 按钮 -->
         <button
@@ -59,6 +62,7 @@
       <div v-if="isVideoType" class="upload-info-text">
         （最多支持上传1个视频）
       </div>
+
     <!-- 类别选择 -->
     <div class="category-selection">
       <button class="tag-button" @click="toggleDropdown">
@@ -225,7 +229,7 @@ const isFindingPartner = ref(false);
 const partnerDescription = ref<string>(""); // 旅伴描述
 const isPartnerDescriptionExceeded = ref(false); // 描述是否超出字数
 
-const files = ref<{ file: File | null; url: string }[]>([]); // 图片文件与预览 URL
+const files = ref<{ file: File | null; url: string; coverUrl?: string }[]>([]);
 const note_urls = ref<string[]>([]); // 上传成功后的图片 URL 列表
 const isUploading = ref(false); // 上传状态
 const isPublishing = ref(false); // 发布状态
@@ -249,7 +253,7 @@ const updateRecommendedTags = (category: string) => {
 // 文件上传限制提示
 const fileLimitReached = computed(() => {
   if (isVideoType.value) {
-    return files.value.length >= 1;
+    return files.value.length >= 2;
   } else {
     return files.value.length >= 18;
   }
@@ -258,6 +262,7 @@ const fileLimitReached = computed(() => {
 // 初始化时从路由参数加载文件
 onMounted(() => {
   const fileUrl = route.query.fileUrl as string;
+  const coverUrl = route.query.coverUrl as string; // 获取封面 URL
   const type = route.query.type as string;
 
   if (fileUrl && type === "image") {
@@ -271,13 +276,9 @@ onMounted(() => {
     note_urls.value.push(fileUrl); // 初始化 note_urls 列表
   } else if (fileUrl && type === "video") {
     isVideoType.value = true; // 明确设置为 true
-    files.value = [
-      {
-        file: null,
-        url: fileUrl,
-      },
-    ];
+    files.value = [{ file: null, url: fileUrl, coverUrl: coverUrl }];
     note_urls.value.push(fileUrl); // 初始化 note_urls 列表
+    note_urls.value.push(coverUrl); // 添加封面 URL
   }
   console.log("isVideoType on init:", isVideoType.value);
 });
@@ -344,6 +345,67 @@ const handleFileSelect = async (event: Event): Promise<void> => {
   await uploadFile(file);
 };
 
+// 生成视频封面
+const generateVideoCover = (videoFile: File): Promise<File> => {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement("video");
+    const canvas = document.createElement("canvas");
+    const url = URL.createObjectURL(videoFile);
+
+    video.src = url;
+    video.crossOrigin = "anonymous";
+    video.load();
+
+    video.addEventListener("loadeddata", () => {
+      video.currentTime = 0;
+    });
+
+    video.addEventListener("seeked", () => {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const coverFile = new File([blob], "cover.png", { type: "image/png" });
+            resolve(coverFile);
+          } else {
+            reject(new Error("无法生成封面图片"));
+          }
+        }, "image/png");
+      } else {
+        reject(new Error("无法获取Canvas上下文"));
+      }
+    });
+
+    video.addEventListener("error", () => {
+      reject(new Error("视频加载失败"));
+    });
+  });
+};
+
+// 上传封面图片
+const uploadCover = async (coverFile: File): Promise<string> => {
+  const formData = new FormData();
+  formData.append("file", coverFile);
+
+  // eslint-disable-next-line no-useless-catch
+  try {
+    const response = await axios.post("/api/note/uploadNotePic", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    if (response.status === 200 && response.data.status === "成功") {
+      return response.data.url; // 返回封面图片的 URL
+    } else {
+      throw new Error(response.data.error || "封面上传失败");
+    }
+  } catch (error) {
+    throw error;
+  }
+};
+
 
 // 上传文件到 OSS
 const uploadFile = async (file: File) => {
@@ -367,8 +429,12 @@ const uploadFile = async (file: File) => {
 
       // 如果是视频类型，确保只保留一个文件
       if (isVideoType.value) {
-        files.value = [{ file: null, url: uploadedUrl }];
-        note_urls.value = [uploadedUrl];
+        // 生成封面并上传
+        const coverFile = await generateVideoCover(file);
+        const coverUrl = await uploadCover(coverFile);
+        // 只允许上传一个视频和封面
+        files.value = [{ file: null, url: uploadedUrl, coverUrl: coverUrl }];
+        note_urls.value = [uploadedUrl, coverUrl];
       } else {
         files.value.push({ file: null, url: uploadedUrl });
         note_urls.value.push(uploadedUrl);
@@ -586,6 +652,15 @@ const publishNote = async () => {
   .back-home:hover {
     color: #003f12;
   }
+
+  .cover-preview {
+  width: 100%;
+  height: 100px;
+  object-fit: cover;
+  margin-top: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
   
   .preview-area,
   .title-input-container,

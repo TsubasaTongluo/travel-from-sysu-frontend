@@ -32,6 +32,8 @@
       <div v-if="file" class="preview-item">
         <img v-if="isImageUpload && file.url" :src="file.url" alt="预览" />
         <video v-if="!isImageUpload && file.url" :src="file.url" controls></video>
+          <!-- 显示封面预览
+          <img v-if="!isImageUpload && coverUrl" :src="coverUrl" alt="封面预览" /> -->
       </div>
     </div>
 
@@ -51,6 +53,7 @@ const router = useRouter();
 
 const isImageUpload = ref(true); // 默认是图片上传
 const file = ref<{ file: File; url: string } | null>(null); // 上传的单个文件
+const coverUrl = ref<string | null>(null); // 视频封面URL
 const isUploading = ref(false); // 是否正在上传
 
 // 切换上传类型
@@ -96,6 +99,10 @@ const addFile = (selectedFile: File) => {
   // 限制只能选择一个文件
   file.value = { file: selectedFile, url: URL.createObjectURL(selectedFile) };
 
+  if (!isImageUpload.value) {
+    generateVideoCover(selectedFile);
+  }
+
   uploadFile();
 };
 
@@ -116,15 +123,32 @@ const uploadFile = async () => {
     });
 
     if (response.status === 200 && response.data.status === "成功") {
-      alert("上传成功！");
-      // 跳转到 pushNext 界面
-      router.push({
-        name: "publishNext",
-        query: { 
-          fileUrl: response.data.url,
-          type: isImageUpload.value ? "image" : "video",
-         },
-      });
+      if (isImageUpload.value) {
+        alert("上传成功！");
+        // 跳转到 pushNext 界面
+        router.push({
+          name: "publishNext",
+          query: { 
+            fileUrl: response.data.url,
+            type: "image",
+           },
+        });
+      } else {
+        // 等待封面上传完成
+        if (!coverUrl.value) {
+          throw new Error("封面上传中，请稍后再试");
+        }
+        alert("视频和封面上传成功！");
+        // 跳转到 pushNext 界面
+        router.push({
+          name: "publishNext",
+          query: { 
+            fileUrl: response.data.url,
+            coverUrl: coverUrl.value,
+            type: "video",
+           },
+        });
+      }
     } else {
       throw new Error(response.data.error || "上传失败");
     }
@@ -135,6 +159,76 @@ const uploadFile = async () => {
     window.location.reload();
   } finally {
     isUploading.value = false; // 隐藏加载蒙版
+  }
+};
+
+// 生成视频封面
+const generateVideoCover = (videoFile: File) => {
+  return new Promise<void>((resolve, reject) => {
+    const video = document.createElement("video");
+    const canvas = document.createElement("canvas");
+    const url = URL.createObjectURL(videoFile);
+
+    video.src = url;
+    video.crossOrigin = "anonymous";
+    video.load();
+
+    video.addEventListener("loadeddata", () => {
+      video.currentTime = 0;
+    });
+
+    video.addEventListener("seeked", () => {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const coverFile = new File([blob], "cover.png", { type: "image/png" });
+            uploadCover(coverFile)
+              .then((url) => {
+                coverUrl.value = url;
+                resolve();
+              })
+              .catch((err) => {
+                console.error("封面上传失败：", err);
+                reject(err);
+              });
+          } else {
+            reject(new Error("无法生成封面图片"));
+          }
+        }, "image/png");
+      } else {
+        reject(new Error("无法获取Canvas上下文"));
+      }
+    });
+
+    video.addEventListener("error", (e) => {
+      reject(new Error("视频加载失败"));
+    });
+  });
+};
+
+
+// 上传封面图片
+const uploadCover = async (coverFile: File): Promise<string> => {
+  const formData = new FormData();
+  formData.append("file", coverFile);
+
+  // eslint-disable-next-line no-useless-catch
+  try {
+    const response = await axios.post("/api/note/uploadNotePic", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    if (response.status === 200 && response.data.status === "成功") {
+      return response.data.url; // 返回封面图片的URL
+    } else {
+      throw new Error(response.data.error || "封面上传失败");
+    }
+  } catch (error) {
+    throw error;
   }
 };
 </script>

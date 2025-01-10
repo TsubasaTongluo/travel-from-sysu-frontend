@@ -26,17 +26,29 @@
 
     <div class="feeds-container" :class="{ 'loading': isLoading }">
       <div class="grid-container">
-        <div class="card" v-for="item in noteList" :key="item.id" style="max-width: 240px">
+        <div class="card" 
+          v-for="item in noteList" 
+          :key="item.id" 
+          style="max-width: 240px"
+          :class="{ 'buddy-finding': item.is_finding_buddy === 1 }"
+          >
+          
           <div class="image-wrapper">
             <!-- 如果是视频类型，显示视频封面 -->
-            <img
+            <!-- <img
                 v-if="isVideo(item.noteCover[0])"
                 :src=default_videoCover
                 :style="{ width: '100%', height: 'auto', borderRadius: '8px' }"
                 fit="contain"
                 @click="toMain(item)"
+            /> -->
+            <img
+                v-if="isVideo(item.noteCover[0])"
+                :src="(item.noteCover && item.noteCover[1]) ? item.noteCover[1] : default_videoCover"
+                :style="{ maxWidth: '210px', borderRadius: '8px' }"
+                fit="contain"
+                @click="toMain(item)"
             />
-
 
             <div v-if="isVideo(item.noteCover[0])" class="video-icon">
               <img src="/icons/video-icon.png" />
@@ -358,7 +370,7 @@ onMounted(() => {
   const userInfo = userStore.getUserInfo();
   if (userInfo && userInfo.username && userInfo.uid) {
     console.log('当前用户信息:', userInfo);
-    fetchNotes(null, userInfo.uid);  // 使用 user_id
+    fetchHotNotes(null, userInfo.uid);  // 使用 user_id
   } else {
     console.log("用户未登录，加载公共内容！");
     fetchNotes();  // 未登录时加载公开内容
@@ -1083,6 +1095,96 @@ const fetchNotes = async (noteType: string | null = null, userId: string | null 
   }
 };
 
+const fetchHotNotes = async (noteType: string | null = null, userId: string | null = null) => {
+  isLoading.value = true;
+
+  // 允许未登录时不传递 userId
+  if (!userId) {
+    console.warn('用户未登录，加载公共内容');
+    userId = '';  // 未登录时，使用空字符串或默认值来获取公共内容
+  }
+
+  try {
+    const num = 15;  // 请求的条数，默认为 10
+
+    const response = await axios.get('/api/note/getHotRecommendations', {
+      params: {
+        note_type: noteType || '',  // 分类过滤（如果有的话）
+        user_id: userId || 0, // 用户id，未登录时使用0
+        num: num,         // 请求的条数
+        cursor: '',   // 游标为空
+      },
+    });
+
+    if (response.data && response.data.data && response.data.data.notes) {
+      let notes = response.data.data.notes;
+
+      if (notes === null) {
+        noteList.value = [];
+        console.warn("后端返回了空的笔记列表（null），已转换为空数组");
+      } else {
+        // 分类过滤
+        if (noteType) {
+          notes = notes.filter((note: any) => note.note_type === noteType);
+        }
+
+        // 填充用户名和头像
+        for (let note of notes) {
+          const username = await fetchUsernameById(note.note_creator_id);
+          note.username = username || '未知用户';
+
+          const avatar = await fetchAvatarById(note.note_creator_id);
+          note.avatar = avatar || default_avatar;
+        }
+
+        // 更新笔记列表
+        noteList.value = notes.map((note: any) => ({
+          note_id: note.note_id,
+          title: note.note_title,
+          content: note.note_content,
+          viewCount: note.view_count,
+          tag: note.note_tag_list || [],
+          noteCover: (() => {
+            if (typeof note.note_urls === "string") {
+              try {
+                const parsedUrls = JSON.parse(note.note_urls);
+                if (Array.isArray(parsedUrls)) {
+                  return parsedUrls;
+                }
+              } catch (error) {
+                console.error("note_urls 字段解析失败：", error);
+              }
+              return [];
+            } else if (Array.isArray(note.note_urls)) {
+              return note.note_urls;
+            }
+            return [];
+          })(),
+          creatorId: note.note_creator_id,
+          datetime: note.note_update_time,
+          likeCount: note.like_counts,
+          collection: note.collect_counts,
+          comment_counts: note.comment_counts,
+          username: note.username,
+          avatar: note.avatar,
+          noteType: note.note_type,
+          isLike: note.status.is_like,  // 后端返回这个字段来表示是否已点赞
+          isCollection: note.status.is_collect,  // 后端返回这个字段来表示是否已收藏
+          isFollow: note.status.is_follow,
+        }));
+      }
+    } else {
+      console.error('后端返回数据格式错误：缺少 notes 字段');
+      noteList.value = [];
+    }
+    isLoading.value = false;
+  } catch (error) {
+    console.error('获取笔记数据失败', error);
+    isLoading.value = false;
+    noteList.value = [];
+  }
+};
+
 
 
 // 获取用户名的函数
@@ -1130,7 +1232,7 @@ const getNoteList = () => {
   const userId = userInfo?.uid || null;  // 如果没有登录，userId 默认为 null
 
   categoryClass.value = '0';  // 默认显示推荐类别
-  fetchNotes(null, userId);  // 不管是否登录，都传递用户信息或空值
+  fetchHotNotes(null, userId);  // 不管是否登录，都传递用户信息或空值
 };
 
 // 获取分类后的笔记列表
@@ -1232,7 +1334,11 @@ const refreshContent = async () => {
     const userId = userInfo?.uid;
 
     // 刷新时，根据当前分类和 userId 获取数据
-    await fetchNotes(categoryClass.value === '0' ? null : categoryClass.value, userId);
+    if(categoryClass.value === '0'){
+      await fetchHotNotes(null, userId);
+    }else{
+      await fetchNotes(categoryClass.value, userId);
+    }
   } catch (error) {
     console.error('刷新数据失败', error);
   } finally {
@@ -1269,6 +1375,8 @@ const closeFullscreen = () => {
 
 
 <style lang="less" scoped>
+
+
 .feeds-page {
   flex: 1;
   padding: 0 24px;
@@ -1374,6 +1482,7 @@ const closeFullscreen = () => {
   &.loading {
     transform: translateY(60px);
   }
+  
 
   .feeds-container {
     .grid-container {
@@ -1382,6 +1491,7 @@ const closeFullscreen = () => {
       column-gap: 16px; /* 列间距 */
       padding: 0 8px;
       column-count: 5;
+      
 
       /* 卡片样式适配瀑布流 */
       .card {
@@ -1393,6 +1503,12 @@ const closeFullscreen = () => {
         border-radius: 8px;
         box-shadow: 0 1px 3px rgba(0, 86, 31, 0.3);
         overflow: hidden;
+        
+          
+      /* 如果 is_finding_buddy 为 1，添加暗红色边框 */
+        &.buddy-finding {
+          border: 2px solid #8B0000; /* 暗红色边框 */
+        }
 
         .image-wrapper {
           position: relative; /* 确保视频图标可以定位在图片上层 */
