@@ -32,7 +32,7 @@
             <img
                 v-if="isVideo(item.noteCover[0])"
                 :src=default_videoCover
-                :style="{ maxWidth: '210px', borderRadius: '8px' }"
+                :style="{ width: '100%', height: 'auto', borderRadius: '8px' }"
                 fit="contain"
                 @click="toMain(item)"
             />
@@ -46,7 +46,7 @@
             <img
                 v-else
                 :src="item.noteCover[0]"
-                :style="{ maxWidth: '210px', borderRadius: '8px' }"
+                :style="{ width: '100%', height: 'auto', borderRadius: '8px' }"
                 fit="contain"
                 @click="toMain(item)"
             />

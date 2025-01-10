@@ -32,7 +32,7 @@
             <img
                 v-if="isVideo(item.noteCover[0])"
                 :src=default_videoCover
-                :style="{ maxWidth: '210px', borderRadius: '8px' }"
+                :style="{ width: '100%', height: 'auto', borderRadius: '8px' }"
                 fit="contain"
                 @click="toMain(item)"
             />
@@ -46,7 +46,7 @@
             <img
                 v-else
                 :src="item.noteCover[0]"
-                :style="{ maxWidth: '210px', borderRadius: '8px' }"
+                :style="{ width: '100%', height: 'auto', borderRadius: '8px' }"
                 fit="contain"
                 @click="toMain(item)"
             />
@@ -1008,7 +1008,7 @@ const fetchNotes = async (noteType: string | null = null, userId: string | null 
     const response = await axios.get('/api/note/getNotesByUpdateTime', {
       params: {
         note_type: noteType || '',  // 分类过滤（如果有的话）
-        user_id: userId || 0, // 用户id，未登录时使用 0 或空字符串
+        user_id: userId || 0, // 用户id，未登录时使用0
         num: num,         // 请求的条数
         cursor: '',   // 游标为空
       },

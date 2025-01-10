@@ -718,18 +718,22 @@ a {
       width: 100%;
 
       @media screen and (min-width: 960px) and (max-width: 1191px) {
+        width: calc(100% - (-6px + 25vw));
         padding-left: calc(-6px + 25vw);
       }
 
       @media screen and (min-width: 1192px) and (max-width: 1423px) {
+        width: calc(100% - (-4.8px + 20vw));
         padding-left: calc(-4.8px + 20vw);
       }
 
       @media screen and (min-width: 1424px) and (max-width: 1727px) {
+        width: calc(100% - (-5.33333px + 16.66667vw));
         padding-left: calc(-5.33333px + 16.66667vw);
       }
 
       @media screen and (min-width: 1728px) {
+        width: calc(100% - 282.66667px);
         padding-left: 282.66667px;
       }
     }

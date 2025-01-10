@@ -105,7 +105,8 @@
             <img
                 :src="item.noteType === 'video' ? default_videoCover : item.note_URLs[0]"
                 :style="{
-                maxWidth: '210px',
+                width: '100%',
+                height: 'auto',
                 borderRadius: '8px',
               }"
                 fit="contain"
