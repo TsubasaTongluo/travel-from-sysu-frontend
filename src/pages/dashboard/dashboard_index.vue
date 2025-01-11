@@ -172,11 +172,11 @@
                       作者
                     </span>
                   </span>
-                  <p class="comment-content">{{ comment.content }}</p>
+                  <p class="comment-content">{{ comment.content}}</p>
                   <p class="comment-time">{{ formatDate_comment(comment.created_at) }}</p>
                   <div class="comment-icons">
-                    <span class="comment-icon">
-                      <img
+                    <span class="comment-icon" >
+                      <img @click="likeComment(comment)"
                           :src="comment.isLiked ? '/icons/like-filled.png' : '/icons/like.png'"
                           class="icons" />
                       <i class="iconfont icon-like"></i> {{ comment.comment_like }}
@@ -215,8 +215,8 @@
                         <p class="comment-time">{{ formatDate_comment(secondComment.created_at) }}</p>
                         <div class="comment-icons">
                         <span class="comment-icon">
-                          <img
-                              :src="secondComment.isLiked ? '/icons/like-filled.png' : '/icons/like.png'"
+                          <img @click = "likeComment(secondComment)"
+                              :src="secondComment.isLiked ? '/icons/like-filled.png' : '/icons/like.png' "
                               class="icons" />
                           <i class="iconfont icon-like"></i> {{ secondComment.comment_like }}
                         </span>
@@ -470,7 +470,6 @@ const comment_comment = async (comment:Comment,note:Note) =>{
     secondComments[comment.comment_id]=[];
   }
 };
-
 async function processComments(res: any): Promise<Comment[]> {
   const comments = res.data.comments;
   if (!comments) {
@@ -480,39 +479,63 @@ async function processComments(res: any): Promise<Comment[]> {
 
   // 使用 Promise.all 确保所有异步请求都完成
   const processedComments = await Promise.all(
-      res.data.comments.map(async (comment: any) => {
-        let new_comment: Comment = { ...comment };
-        new_comment.isSecondCommentsVisible = true; // 默认隐藏二级评论
+    res.data.comments.map(async (comment: any) => {
+      let new_comment: Comment = { ...comment };
+      new_comment.isSecondCommentsVisible = true; // 默认隐藏二级评论
 
-        // 获取评论者的头像和用户名
+      // 获取评论者的头像和用户名
+      try {
+        new_comment.creator_avatar = await fetchAvatarById(new_comment.creator_id);
+      } catch (error) {
+        console.log("获取头像失败:", error);
+        new_comment.creator_avatar = default_avatar;
+      }
+
+      try {
+        const user = await get_userinfo(new_comment.creator_id);
+        new_comment.creator_username = user.data.username;
+      } catch (error) {
+        console.log("获取用户信息失败:", error);
+        new_comment.creator_username = "未知用户"; // 默认用户名
+      }
+
+      // 如果该评论是二级评论，获取其回复者的用户名
+      if (new_comment.level === 2 && new_comment.reply_uid) {
         try {
-          new_comment.creator_avatar = await fetchAvatarById(new_comment.creator_id);
+          const replyUser = await get_userinfo(new_comment.reply_uid);
+          new_comment.reply_username = replyUser.data.username;
         } catch (error) {
-          console.log("获取头像失败:", error);
-          new_comment.creator_avatar = default_avatar;
+          console.log("获取回复用户信息失败:", error);
+          new_comment.reply_username = "未知用户"; // 默认用户名
         }
+      }
 
-        try {
-          const user = await get_userinfo(new_comment.creator_id);
-          new_comment.creator_username = user.data.username;
-        } catch (error) {
-          console.log("获取用户信息失败:", error);
-          new_comment.creator_username = "未知用户"; // 默认用户名
-        }
-
-        // 如果该评论是二级评论，获取其回复者的用户名
-        if (new_comment.level === 2 && new_comment.reply_uid) {
-          try {
-            const replyUser = await get_userinfo(new_comment.reply_uid);
-            new_comment.reply_username = replyUser.data.username;
-          } catch (error) {
-            console.log("获取回复用户信息失败:", error);
-            new_comment.reply_username = "未知用户"; // 默认用户名
+      // 调用 isLikeComment 接口，检查当前用户是否点赞该评论
+      try {
+        const likeResponse = await fetch(
+          `/api/comment/isLikeComment?uid=${userStore.getUserInfo()?.uid}&cid=${new_comment.comment_id}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
           }
-        }
+        );
 
-        return new_comment;
-      })
+        if (likeResponse.ok) {
+          const likeResult = await likeResponse.json();
+          new_comment.isLiked = likeResult.data.like; // 设置点赞状态
+        } else {
+          console.log("检查评论点赞状态失败:", new_comment.comment_id);
+          new_comment.isLiked = false; // 默认未点赞
+        }
+      } catch (error) {
+        console.log("检查点赞状态接口调用失败:", error);
+        new_comment.isLiked = false; // 默认未点赞
+      }
+
+      return new_comment;
+    })
   );
 
   return processedComments;
@@ -875,8 +898,71 @@ async function like(nid:number) {
       note_id: nid,
     },
   });
-}
+};
 
+async function likeComment(comment) {
+  console.log("click-comment");
+  try {
+    // 拼接查询参数到 URL
+    const checkUrl = `/api/comment/isLikeComment?cid=${comment.comment_id}&uid=${userStore.getUserInfo()?.uid}`;
+
+    // 调用接口检查当前用户是否已点赞该评论
+    const checkResponse = await fetch(checkUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    // 检查是否成功返回
+    if (!checkResponse.ok) {
+      console.error('检查点赞状态失败');
+      return;
+    }
+
+    const checkResult = await checkResponse.json();
+
+    const isLiked = checkResult?.data?.like || false; // 获取点赞状态（默认未点赞）
+
+    // 根据当前点赞状态选择接口
+    const url = isLiked ? '/api/comment/unlikeComment' : '/api/comment/likeComment';
+    const requestBody = {
+      comment_id: comment.comment_id,
+      uid: userStore.getUserInfo()?.uid,
+    };
+
+    console.log('Request Body:', requestBody);
+
+    // 调用点赞或取消点赞接口
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    // 检查请求是否成功
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('点赞/取消点赞失败:', errorData.error);
+      return;
+    }
+
+    // 更新前端的点赞状态和点赞数
+    if (!isLiked) {
+      // 点赞成功
+      comment.isLiked = true;
+      comment.comment_like += 1;
+    } else {
+      // 取消点赞成功
+      comment.isLiked = false;
+      comment.comment_like -= 1;
+    }
+  } catch (error) {
+    console.error('请求失败:', error);
+  }
+}
 async function unlike(nid:number) {
   return await axios({
     url:"/api/note/dislike",
