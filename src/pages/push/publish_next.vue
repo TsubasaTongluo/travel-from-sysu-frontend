@@ -80,7 +80,14 @@
       <div class="title-input-container">
         <label class="input-label">取个标题吧：</label>
         <div class="title-wrapper">
-          <span class="category-prefix">【{{ selectedCategory }}】</span>
+            <span class="category-prefix">
+            <span v-if="isFindingPartner">
+              【找{{ selectedCategory }}搭子】
+            </span>
+            <span v-else>
+              【{{ selectedCategory }}】
+            </span>
+        </span>
           <input
             type="text"
             v-model="title"
@@ -106,7 +113,7 @@
         ></textarea>
         <span class="char-count">{{ info.length }}/250</span>
       </div>
-      <p v-if="isInfoExceeded" class="error-message">信息不能超过250字！</p>
+      <p v-if="isInfoExceeded" class="error-message">帖子内容不能超过250字！</p>
 
       <!-- 标签选择 -->
       <div class="tag-container">
@@ -555,23 +562,45 @@ const publishNote = async () => {
     info.value.length === 0 ||
     note_urls.value.length === 0
   ) {
-    alert("类别、标题、信息和文件都是必填项！");
+    alert("帖子标题、帖子内容都是必填项！");
     return;
+  }else{
+    if(isFindingPartner.value&&partnerDescription.value.length===0){
+      alert("找搭子模式下搭子需求描述不可为空！");
+      return;
+    }
   }
 
   // 显示发布状态
   isPublishing.value = true;
 
-  title.value = `[${selectedCategory.value}] ` + title.value;
+
+  if(isFindingPartner.value){
+    title.value = `【找${selectedCategory.value}搭子】 ` + title.value;
+  }else{
+    title.value = `【${selectedCategory.value}】 ` + title.value;
+  }
+
+  info.value = info.value+ `\n---搭子描述：\n` + partnerDescription.value;  
 
   // 创建 FormData 实例
   const formData = new FormData();
   formData.append('note_title', title.value);
   formData.append('note_content', info.value);
   formData.append('note_tag_list', [...customTags.value].join(','));
-  formData.append('note_type', selectedCategory.value || '');
+  if(selectedCategory.value  == "旅游"){
+    formData.append('note_type', "旅行");
+  }else if(selectedCategory.value  == "活动外出"){
+    formData.append('note_type', "外出");
+  }else if(selectedCategory.value  == "返乡记录"){
+    formData.append('note_type', "返乡");
+  }
   formData.append('note_creator_id', userId);
   formData.append('note_urls',JSON.stringify(note_urls.value));
+  if(isFindingPartner.value){
+    formData.append('is_finding_buddy', '1');
+    formData.append('buddy_description', partnerDescription.value);    
+  }
 
   // 打印 FormData 的内容
   for (let pair of formData.entries()) {
@@ -664,9 +693,27 @@ const publishNote = async () => {
   
   .preview-area,
   .title-input-container,
-  .info-input-container,
   .tag-container {
     width: 80%;
+  }
+
+  .info-input-container {
+    position: relative;
+    max-width: 100%;
+  }
+
+  .info-input {
+    width: 100%;
+    min-height: 80px; /* 设置一个最小高度 */
+    height: auto; /* 允许高度自动调整 */
+    padding: 10px;
+    font-size: 14px;
+    line-height: 1.5;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    resize: none; /* 禁止用户手动调整大小 */
+    overflow: hidden; /* 防止内容溢出 */
+    box-sizing: border-box;
   }
   
   .preview-area {
@@ -766,11 +813,16 @@ const publishNote = async () => {
   align-items: center;
   margin-top: 8px;
 }
+.title-wrapper .category-prefix {
+  white-space: nowrap; /* 禁止文本换行 */
+  overflow: hidden; /* 如果文本太长，可以隐藏超出的部分 */
+  /* text-overflow: ellipsis; 显示省略号 '...' 来表示超出的文本 */
+}
 
 .category-prefix {
   margin-top:5px;
-  margin-right: 8px;
-  font-size: 16px;
+  margin-right: 4px;
+  font-size: 15px;
   color: #1c1a1aad;
   font-weight: thin;
 

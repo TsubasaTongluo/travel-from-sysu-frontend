@@ -335,9 +335,10 @@ const noteList = ref<Note[]>([]); // 从后端获取的笔记数据
 const categoryClass = ref("0"); // 当前分类，"0" 表示推荐
 
 const categoryList = ref([
-  { id: "旅行", title: "旅行" },
-  { id: "外出", title: "外出" },
-  { id: "返乡", title: "返乡" }
+  { id: "旅行", title: "旅游" },
+  { id: "外出", title: "活动外出" },
+  { id: "返乡", title: "返乡记录" },
+  { id: "找搭子", title: "找搭子专区" }
 ]);
 
 const isLoading = ref(false); // 加载状态
@@ -1034,7 +1035,7 @@ const fetchNotes = async (noteType: string | null = null, userId: string | null 
         console.warn("后端返回了空的笔记列表（null），已转换为空数组");
       } else {
         // 分类过滤
-        if (noteType) {
+        if (noteType&&noteType!="找搭子") {
           notes = notes.filter((note: any) => note.note_type === noteType);
         }
 
@@ -1239,7 +1240,6 @@ const getNoteList = () => {
 const getNoteListByCategory = (id: string) => {
   const userInfo = userStore.getUserInfo();  // 每次调用时重新获取用户信息
   const userId = userInfo?.uid || null;  // 如果没有登录，userId 默认为 null
-
   categoryClass.value = id;
   noteList.value = [];  // 清空当前显示的笔记列表
   fetchNotes(id === '0' ? null : id, userId);  // 将 userId 传递给 fetchNotes
@@ -1499,6 +1499,7 @@ const closeFullscreen = () => {
         display: inline-block; /* 必须使用 inline-block，避免跨列 */
         width: 100%; /* 确保卡片宽度适配列宽 */
         margin-bottom: 16px; /* 卡片间距 */
+        border-color:#003366;
         background: #fff;
         border-radius: 8px;
         box-shadow: 0 1px 3px rgba(0, 86, 31, 0.3);
