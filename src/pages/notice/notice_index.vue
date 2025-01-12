@@ -36,16 +36,6 @@
           </div>
         </div>
 
-        <!-- 动态展示评论内容 -->
-        <div v-if="message.type === 'comment'" class="message-body">
-          {{ message.content }}
-          <!-- 显示通过评论ID获取的详细评论 -->
-          <div v-if="message.commentDetails">
-            <p>{{ message.commentDetails.content }}</p>
-            <small>评论ID: {{ message.commentDetails.id }}</small>
-          </div>
-        </div>
-
         <!-- 短横线 -->
         <hr class="divider-short" v-if="index !== filteredNotifications.length - 1" />
       </div>
@@ -55,6 +45,7 @@
 
 <script>
 import axios from "axios";
+import { useUserStore } from "@/store/user";  // 正确的路径引用
 
 export default {
   data() {
@@ -63,6 +54,7 @@ export default {
       notifications: [], // 消息列表
     };
   },
+
   computed: {
     filteredNotifications() {
       return this.notifications.filter((message) => {
@@ -77,41 +69,60 @@ export default {
       });
     },
   },
+
   methods: {
+    // 获取当前用户 ID
+    getRecipientId() {
+      const userStore = useUserStore(); // 获取 store
+      const user = userStore.getUserInfo(); // 从 store 获取用户信息
+      console.log("获取的用户信息: ", user);  // 添加检查信息
+      return user ? user.uid : null; // 获取用户 ID
+    },
+
     // 切换到 "评论" 功能
     switchToComments() {
       this.activeTab = "comments";
-      this.fetchComments();
+      console.log("切换到评论标签");  // 添加检查信息
+      this.fetchUnreadComments();
     },
-    // 获取未读评论消息
-    async fetchComments() {
+
+    async fetchUnreadComments() {
+      const recipientId = this.getRecipientId();
+      if (!recipientId) {
+        console.error("无法获取用户 ID，请检查登录状态！");
+        return;
+      }
+
+      console.log("发送请求获取未读评论，用户ID: ", recipientId);  // 添加检查信息
+
       try {
         const response = await axios.get("/api/notification/unread_comments", {
-          params: { recipient_id: 2 }, // 根据实际需要传递用户 ID
+          params: { recipient_id: recipientId },
         });
+
+        console.log("评论接口返回数据: ", response.data);  // 添加检查信息
 
         if (response.data.code === 200 && response.data.status === "成功") {
           const { notifications } = response.data.data;
 
-          // 获取头像和用户名信息
+          // 处理通知数据
           const promises = notifications.map(async (item) => {
-            const avatar = await this.getUserAvatar(item.initiator_id); // 使用 UID 获取头像
+            const avatar = await this.getUserAvatar(item.initiator_id);
             const username = await this.getUsername(item.initiator_id);
-
-            // 获取评论详细内容
-            const commentDetails = await this.getCommentDetails(item.comment_id);
 
             return {
               ...item,
               avatar,
-              username,
-              commentDetails, // 添加评论详细内容
+              username
             };
           });
 
-          const commentNotifications = await Promise.all(promises);
-
-          this.notifications = [...this.notifications, ...commentNotifications];
+          // 使用 Promise.all 来等待所有异步操作完成
+          const CommentNotifications = await Promise.all(promises);
+          
+          // 更新通知列表
+          this.notifications = CommentNotifications;
+          console.log("更新后的评论通知数据: ", this.notifications);  // 添加检查信息
         } else {
           console.error("获取评论消息失败：", response.data);
         }
@@ -119,37 +130,36 @@ export default {
         console.error("接口请求失败：", error);
       }
     },
-    // 获取评论详情
-    async getCommentDetails(commentId) {
-      try {
-        const response = await axios.get("/api/comment/getCommentById", {
-          params: { comment_id: commentId },
-        });
-        return response.data.status === "成功" ? response.data.data : null;
-      } catch (error) {
-        console.error("获取评论详情失败：", error);
-        return null;
-      }
-    },
+
     // 切换到 "赞和收藏" 功能
     switchToLikes() {
       this.activeTab = "likes";
+      console.log("切换到赞和收藏标签");  // 添加检查信息
       this.fetchLikesAndCollects();
     },
+
     // 获取未读 "赞和收藏" 消息
     async fetchLikesAndCollects() {
+      const recipientId = this.getRecipientId();
+      if (!recipientId) {
+        console.error("无法获取用户 ID，请检查登录状态！");
+        return;
+      }
+
+      console.log("发送请求获取未读赞和收藏，用户ID: ", recipientId);  // 添加检查信息
+
       try {
         const response = await axios.get("/api/notification/unread_likes-and-collects", {
-          params: { recipient_id: 2 }, // 根据实际需要传递用户 ID
+          params: { recipient_id: recipientId },
         });
+
+        console.log("赞和收藏接口返回数据: ", response.data);  // 添加检查信息
 
         if (response.data.code === 200 && response.data.status === "成功") {
           const { notifications } = response.data.data;
-          console.log("获取赞和收藏消息成功：",response.data);
 
-          // 获取头像和用户名信息
           const promises = notifications.map(async (item) => {
-            const avatar = await this.getUserAvatar(item.initiator_id); // 使用 UID 获取头像
+            const avatar = await this.getUserAvatar(item.initiator_id);
             const username = await this.getUsername(item.initiator_id);
 
             return {
@@ -160,8 +170,8 @@ export default {
           });
 
           const likeCollectNotifications = await Promise.all(promises);
-
           this.notifications = [...this.notifications, ...likeCollectNotifications];
+          console.log("更新后的赞和收藏通知数据: ", this.notifications);  // 添加检查信息
         } else {
           console.error("获取赞和收藏消息失败：", response.data);
         }
@@ -169,24 +179,36 @@ export default {
         console.error("接口请求失败：", error);
       }
     },
+
     // 切换到 "新增关注" 功能
     switchToFollows() {
       this.activeTab = "follows";
+      console.log("切换到新增关注标签");  // 添加检查信息
       this.fetchFollows();
     },
+
     // 获取未读 "新增关注" 消息
     async fetchFollows() {
+      const recipientId = this.getRecipientId();
+      if (!recipientId) {
+        console.error("无法获取用户 ID，请检查登录状态！");
+        return;
+      }
+
+      console.log("发送请求获取未读新增关注，用户ID: ", recipientId);  // 添加检查信息
+
       try {
         const response = await axios.get("/api/notification/unread_follows", {
-          params: { recipient_id: 2 }, // 根据实际需要传递用户 ID
+          params: { recipient_id: recipientId },
         });
+
+        console.log("新增关注接口返回数据: ", response.data);  // 添加检查信息
 
         if (response.data.code === 200 && response.data.status === "成功") {
           const { notifications } = response.data.data;
 
-          // 获取头像和用户名信息
           const promises = notifications.map(async (item) => {
-            const avatar = await this.getUserAvatar(item.initiator_id); // 使用 UID 获取头像
+            const avatar = await this.getUserAvatar(item.initiator_id);
             const username = await this.getUsername(item.initiator_id);
 
             return {
@@ -197,8 +219,8 @@ export default {
           });
 
           const followNotifications = await Promise.all(promises);
-
           this.notifications = [...this.notifications, ...followNotifications];
+          console.log("更新后的新增关注通知数据: ", this.notifications);  // 添加检查信息
         } else {
           console.error("获取新增关注消息失败：", response.data);
         }
@@ -206,11 +228,12 @@ export default {
         console.error("接口请求失败：", error);
       }
     },
+
     // 获取用户头像
     async getUserAvatar(userId) {
       try {
         const response = await axios.get("/api/auth/getAvatar", {
-          params: { uid: userId }, // 传递 uid 参数
+          params: { uid: userId },
         });
         return response.data.avatar || "/images/default-avatar.jpg";
       } catch (error) {
@@ -218,6 +241,7 @@ export default {
         return "/images/default-avatar.jpg";
       }
     },
+
     // 获取用户名
     async getUsername(userId) {
       try {
@@ -230,6 +254,7 @@ export default {
         return "未知用户";
       }
     },
+
     // 格式化时间
     formatTime(dateString) {
       const date = new Date(dateString);
