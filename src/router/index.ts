@@ -24,7 +24,7 @@ export const routes = [
         path: "/dashboard",
         component: Dashboard,
         name: "dashboard",
-        meta: { requiresAuth: true }, // 添加 meta 字段，标记需要登录
+        meta: { requiresAuth: false }, // 添加 meta 字段，标记需要登录
       },
       {
         path: "/followTrend",
@@ -84,7 +84,7 @@ router.beforeEach((to, from, next) => {
 
   if (to.meta.requiresAuth && !isLoggedIn) {
     // 如果页面需要登录且用户未登录
-    next({ name: "login", query: { redirect: to.fullPath } }); // 重定向到登录页
+    next({ name: "dashboard", query: { redirect: to.fullPath } }); // 重定向到登录页
   } else {
     next(); // 否则继续导航
   }
