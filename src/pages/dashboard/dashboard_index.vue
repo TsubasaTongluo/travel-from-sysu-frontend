@@ -412,7 +412,7 @@ const comment_note = async (note:Note) =>{
   // todo: comment 接口
   // console.log("comment!");
   try {
-    const res = await comment(note.note_id);
+    const res = await comment(note.note_id,note.creatorId);
     if(res.data.code===200){
       note.comment_counts+=1;
       // todo: 更新评论
@@ -561,7 +561,8 @@ async function get_secondcomments(comment_id:number){
   });
 }
 
-async function comment(note_id:number) {
+async function comment(note_id:number,note_creator_id:number) {
+  alert(note_creator_id);
   // 一级评论
   return await axios({
     url:"/api/comment/publishComment",
@@ -569,6 +570,7 @@ async function comment(note_id:number) {
     data: {
       note_id: note_id,
       creator_id: userStore.getUserInfo()?.uid,
+      reply_uid:note_creator_id,
       level: 1,
       content: commentContent.value,
     },
