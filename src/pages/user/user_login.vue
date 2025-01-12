@@ -59,6 +59,8 @@
                 <input type="password" placeholder="输入密码" autocomplete="false" v-model="userRegister.password" required/>
               </label>
 
+              <div v-if="passwordTooShort" class="err-msg">密码长度不能小于8位</div>
+
               <div style="height: 16px"></div>
               <label class="auth-code">
                 <input type="password" placeholder="确认密码" autocomplete="false" v-model="userRegister.confirmPassword" required/>
@@ -128,6 +130,9 @@ const passwordsMismatch = computed(() => {
 
 // 控制错误消息是否显示
 const showError = ref(false);
+const passwordTooShort = computed(() => {
+  return userRegister.value.password.length<8 && userRegister.value.password.length>0;
+});
 
 const switchToLogin=() => {
   isLogin.value = true;
@@ -162,6 +167,16 @@ async function register(data:any){
 
 // 注册方法
 const registerMethod = () => {
+
+  if(userRegister.value.password.length < 8){
+    passwordTooShort.value = true;
+    ElMessage.error("密码长度不能小于8位");
+    return;
+  }else{
+    passwordTooShort.value = false;
+  }
+
+
   if (userRegister.value.password !== userRegister.value.confirmPassword) {
     ElMessage.error("密码和确认密码不一致！");
     return;

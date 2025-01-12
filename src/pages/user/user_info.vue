@@ -18,7 +18,7 @@
                 </div>
                 <!-- todo: any其他信息设置？ -->
                 <div class="user-content">
-                  <span class="user-redId">小红书号：{{ userInfo.uid.toString().padStart(6, '0') }}</span>
+                  <span class="user-redId">绿头鸭号&lt;{{ userInfo.uid.toString().padStart(6, '0') }}&gt;</span>
                   <!-- <span class="user-IP"> IP属地：广东</span> -->
                 </div>
               </div>

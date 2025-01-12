@@ -207,7 +207,7 @@ const rules = reactive<FormRules<FormData>>({
   ],
   newPassword: [
     { required: true, message: "请输入新密码", trigger: "blur" },
-    // { min: 6, message: "密码长度不能小于6个字符", trigger: "blur" },
+    { min: 6, message: "密码长度不能小于8个字符", trigger: "blur" },
   ],
 });
 
@@ -316,7 +316,7 @@ const updatePassword = async (formName:FormInstance | undefined) => {
     }
     console.log('submit!');
   }catch(error){
-    alert("表单验证失败！");
+    alert("密码长度不能小于8位！");
     console.log('表单验证失败', error);  // 打印错误信息
     return;
   }
