@@ -24,7 +24,7 @@ export const routes = [
         path: "/dashboard",
         component: Dashboard,
         name: "dashboard",
-        meta: { requiresAuth: true }, // 添加 meta 字段，标记需要登录
+        meta: { requiresAuth: false }, // 添加 meta 字段，标记需要登录
       },
       {
         path: "/followTrend",
