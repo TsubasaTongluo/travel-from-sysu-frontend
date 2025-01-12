@@ -164,7 +164,7 @@
             <div v-if="commentList && commentList.length > 0" class="comments-list">
               <div v-for="comment in commentList" :key="comment.comment_id" class="comment-item">
                 <div class="comment-left">
-                  <img :src="comment.creator_avatar" class="comment-avatar" />
+                  <img :src="comment.creator_avatar||default_avatar" class="comment-avatar" />
                 </div>
                 <div class="comment-right">
                   <span class="comment-username">{{ comment.creator_username }}
@@ -412,7 +412,7 @@ const comment_note = async (note:Note) =>{
   // todo: comment 接口
   // console.log("comment!");
   try {
-    const res = await comment(note.note_id);
+    const res = await comment(note.note_id,note.creatorId);
     if(res.data.code===200){
       note.comment_counts+=1;
       // todo: 更新评论
@@ -561,7 +561,8 @@ async function get_secondcomments(comment_id:number){
   });
 }
 
-async function comment(note_id:number) {
+async function comment(note_id:number,note_creator_id:number) {
+  alert(note_creator_id);
   // 一级评论
   return await axios({
     url:"/api/comment/publishComment",
@@ -569,6 +570,7 @@ async function comment(note_id:number) {
     data: {
       note_id: note_id,
       creator_id: userStore.getUserInfo()?.uid,
+      reply_uid:note_creator_id,
       level: 1,
       content: commentContent.value,
     },
@@ -1008,9 +1010,16 @@ const handleInputClick = () => {
 const follow_note = async (note:Note) =>{
   try {
     const res = await follow(note.creatorId);
+    const follow_id = note.creatorId;
     // console.log("关注结果",res);
     if(res.data.code===200){
       note.isFollow = true;
+      // 更新 noteList 中对应笔记的 is_follow 状态
+      noteList.value.forEach(note => {
+        if (note.creatorId === follow_id) {
+          note.isFollow = true;
+        }
+      });
       // ElMessage.success("关注成功");
       // todo: 本地关注数+1
       if(userInfo.value!==null){
@@ -1028,8 +1037,15 @@ const follow_note = async (note:Note) =>{
 const unfollow_note = async (note:Note) =>{
   try {
     const res = await unfollow(note.creatorId);
+    const unfollow_id = note.creatorId;
     if(res.data.code===200){
       note.isFollow = false;
+      // 更新 noteList 中对应笔记的 is_follow 状态
+      noteList.value.forEach(note => {
+        if (note.creatorId === unfollow_id) {
+          note.isFollow = false;
+        }
+      });
       if(userInfo.value!==null){
         userInfo.value.follower_count -= 1;
         userStore.setUserInfo(userInfo.value);
@@ -1897,12 +1913,12 @@ const closeFullscreen = () => {
 
   .follow-button {
     margin-left: auto; /* 将按钮推到右侧 */
-    padding: 6px 12px;
+    padding: 8px 14px;
     font-size: 14px;
-    background-color: #ff0000;
+    background-color:rgba(0, 86, 31, 0.7);
     color: white;
     border: none;
-    border-radius: 20px;
+    border-radius: 10px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -1911,11 +1927,11 @@ const closeFullscreen = () => {
   }
 
   .follow-button:hover {
-    background-color: #e92828; /* 鼠标悬停时的颜色 */
+    background-color: rgba(0, 86, 31, 0.9); /* 鼠标悬停时的颜色 */
   }
 
   .follow-button.followed {
-    background-color: #ff5c8d; /* 取消关注时的背景色 */
+    background-color: rgba(0, 86, 31, 0.5); /* 取消关注时的背景色 */
   }
 
   .follow-button:focus {

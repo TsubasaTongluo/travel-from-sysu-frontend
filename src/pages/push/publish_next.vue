@@ -577,11 +577,11 @@ const publishNote = async () => {
 
   if(isFindingPartner.value){
     title.value = `【找${selectedCategory.value}搭子】 ` + title.value;
+    info.value = info.value+ `\n---搭子描述：\n` + partnerDescription.value;  
   }else{
     title.value = `【${selectedCategory.value}】 ` + title.value;
   }
 
-  info.value = info.value+ `\n---搭子描述：\n` + partnerDescription.value;  
 
   // 创建 FormData 实例
   const formData = new FormData();
