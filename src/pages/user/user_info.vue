@@ -175,6 +175,21 @@
           <div class="author-info">
             <img :src="selectedNote.avatar" class="author-avatar" />
             <span class="author-name">{{ selectedNote.username }}</span>
+            <button 
+            v-if="selectedNote?.note_creator_id === userInfo?.uid" 
+              class="delete-button"
+              @click="openDeleteDialog(selectedNote)">❌ 删除笔记
+            </button> <!-- 删除按钮 -->
+            <!-- 删除确认弹窗 -->
+            <div v-if="isDeleteDialogVisible" class="del-modal" @click="closeDeleteDialog">
+              <div class="del-modal-content" @click.stop>
+                <p class="del-modal-message">你确定要删除这条笔记吗？此操作无法撤销。</p>
+                <div class="del-modal-actions">
+                  <button class="cancel-button" @click="closeDeleteDialog">取消</button>
+                  <button class="confirm-button" @click="confirmDelete">确认</button>
+                </div>
+              </div>
+            </div>
             <!-- 只有当发布者的 ID 与当前用户的 ID 不相等时才显示按钮 -->
             <button 
               v-if="selectedNote?.note_creator_id !== userInfo?.uid" 
@@ -382,6 +397,49 @@ const secondComments = reactive<Record<number, Array<Comment>>>({});
 const isreply = ref(false);
 const commentContent = ref('');
 import default_videoCover from "@/assets/default_videoCover.png";
+
+
+// 删除确认弹窗状态
+const isDeleteDialogVisible = ref(false);
+const noteToDelete = ref<Note | null>(null);
+
+// 打开删除确认弹窗
+const openDeleteDialog = (note: Note) => {
+  noteToDelete.value = note;
+  isDeleteDialogVisible.value = true;
+};
+
+// 关闭删除确认弹窗
+const closeDeleteDialog = () => {
+  isDeleteDialogVisible.value = false;
+  noteToDelete.value = null;
+};
+
+// 确认删除笔记
+const confirmDelete = async () => {
+  if (noteToDelete.value) {
+    try {
+      const response = await axios.post('/api/note/deleteNote', {
+        note_id: noteToDelete.value.note_id,
+        user_id: userInfo.value?.uid,
+      });
+
+      if (response.data.code === 200) {
+        // 删除成功，移除笔记列表中的该笔记
+        notelist.value = notelist.value.filter(note => note.note_id !== noteToDelete.value?.note_id);
+        ElMessage.success('笔记删除成功');
+        window.location.reload();
+      } else {
+        ElMessage.error(`删除失败：${response.data.error}`);
+      }
+    } catch (error) {
+      console.error('删除笔记失败', error);
+      ElMessage.error('删除笔记失败，请重试');
+    } finally {
+      closeDeleteDialog();
+    }
+  }
+};
 
 
 watch(
@@ -822,11 +880,15 @@ const uncollect_note = async (note:Note) =>{
 const follow_note = async (note:Note) =>{
   try {
     const res = await follow(note.note_creator_id);
-    // console.log("关注结果",res);
+    const follow_id = note.note_creator_id;
     if(res.data.code===200){
       note.isFollow = true;
-      // ElMessage.success("关注成功");
-      // todo: 本地关注数+1
+        // 更新 noteList 中对应笔记的 is_follow 状态
+        notelist.value.forEach(note => {
+        if (note.note_creator_id === follow_id) {
+          note.isFollow = true;
+        }
+      });
       if(userInfo.value!==null){
         userInfo.value.follower_count += 1;
         userStore.setUserInfo(userInfo.value);
@@ -843,8 +905,15 @@ const follow_note = async (note:Note) =>{
 const unfollow_note = async (note:Note) =>{
   try {
     const res = await unfollow(note.note_creator_id);
+    const unfollow_id = note.note_creator_id;
     if(res.data.code===200){
       note.isFollow = false;
+        // 更新 noteList 中对应笔记的 is_follow 状态
+        notelist.value.forEach(note => {
+        if (note.note_creator_id === unfollow_id) {
+          note.isFollow = false;
+        }
+      });
       if(userInfo.value!==null){
         userInfo.value.follower_count -= 1;
         userStore.setUserInfo(userInfo.value);
@@ -1714,31 +1783,31 @@ function formatDate_comment(input) {
     }
 
     .follow-button {
-      margin-left: auto; /* 将按钮推到右侧 */
-      padding: 6px 12px;
-      font-size: 14px;
-      background-color: #ff0000;
-      color: white;
-      border: none;
-      border-radius: 20px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background-color 0.3s;
-    }
+    margin-left: auto; /* 将按钮推到右侧 */
+    padding: 8px 14px;
+    font-size: 14px;
+    background-color:rgba(0, 86, 31, 0.7);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.3s;
+  }
 
-    .follow-button:hover {
-      background-color: #e92828; /* 鼠标悬停时的颜色 */
-    }
+  .follow-button:hover {
+    background-color: rgba(0, 86, 31, 0.9); /* 鼠标悬停时的颜色 */
+  }
 
-    .follow-button.followed {
-      background-color: #ff5c8d; /* 取消关注时的背景色 */
-    }
+  .follow-button.followed {
+    background-color: rgba(0, 86, 31, 0.5); /* 取消关注时的背景色 */
+  }
 
-    .follow-button:focus {
-      outline: none; /* 去掉按钮的聚焦框 */
-    }
+  .follow-button:focus {
+    outline: none; /* 去掉按钮的聚焦框 */
+  }
 
   }
 
@@ -2073,5 +2142,99 @@ function formatDate_comment(input) {
   object-fit: contain;
 }
 
+.delete-button {
+    margin-left: auto; /* 将按钮推到右侧 */
+    padding: 8px 14px;
+    font-size: 14px;
+    background-color:rgba(255, 119, 95, 0.7);
+    color: white;
+    border: none;
+    border-radius: 19px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.3s;
+  }
+
+  .delete-button:hover {
+    background-color:rgba(255, 119, 95, 0.9);
+  }
+
+  .delete-button.followed {
+    background-color: rgba(255, 119, 95, 0.5);
+  }
+
+  .delete-button:focus {
+    outline: none; /* 去掉按钮的聚焦框 */
+  }
+
+
+.confirm-button {
+  background-color: #f56c6c;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.confirm-button:hover {
+  background-color: #d9363e;
+}
+
+.cancel-button {
+  margin-right: 90px;
+  background-color: #aeacac;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.cancel-button:hover {
+  background-color: #808080;
+}
+
+/* 模态框的基本样式 */
+.del-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5); /* 半透明黑色背景 */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000; /* 确保模态框在最上层 */
+  animation: fadeIn 0.3s; /* 淡入动画 */
+}
+
+/* 弹窗内容的样式 */
+.del-modal-content {
+  background-color: #fff; /* 白色背景 */
+  padding: 30px 40px; /* 内边距 */
+  border-radius: 10px; /* 圆角 */
+  width: 90%;
+  max-width: 350px; /* 最大宽度 */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); /* 阴影效果 */
+  text-align: center;
+  position: relative;
+}
+
+/* 消息文本的样式 */
+.del-modal-message {
+  font-size: 16px;
+  color: #4d4d4d;
+  margin-bottom: 25px;
+}
+
+// /* 按钮容器的样式 */
+// .del-modal-actions {
+//   display: flex;
+//   justify-content: space-between; /* 两个按钮分别对齐左右 */
+// }
 
 </style>

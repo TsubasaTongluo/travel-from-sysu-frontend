@@ -320,9 +320,10 @@ const noteList = ref<Note[]>([]); // 从后端获取的笔记数据
 const categoryClass = ref("0"); // 当前分类，"0" 表示推荐
 
 const categoryList = ref([
-  { id: "旅行", title: "旅行" },
-  { id: "外出", title: "外出" },
-  { id: "返乡", title: "返乡" }
+  { id: "旅行", title: "旅游" },
+  { id: "外出", title: "活动外出" },
+  { id: "返乡", title: "返乡记录" },
+  { id: "找搭子", title: "找搭子专区" }
 ]);
 
 const isLoading = ref(false); // 加载状态
@@ -689,11 +690,16 @@ async function reply(data:{
 const follow_note = async (note:Note) =>{
   try {
     const res = await follow(note.creatorId);
+    const follow_id = note.creatorId;
     // console.log("关注结果",res);
     if(res.data.code===200){
       note.isFollow = true;
-      // ElMessage.success("关注成功");
-      // todo: 本地关注数+1
+      // 更新 noteList 中对应笔记的 is_follow 状态
+      noteList.value.forEach(note => {
+        if (note.creatorId === follow_id) {
+          note.isFollow = true;
+        }
+      });
       if(userInfo.value!==null){
         userInfo.value.follower_count += 1;
         userStore.setUserInfo(userInfo.value);
@@ -709,8 +715,15 @@ const follow_note = async (note:Note) =>{
 const unfollow_note = async (note:Note) =>{
   try {
     const res = await unfollow(note.creatorId);
+    const unfollow_id = note.creatorId;
     if(res.data.code===200){
       note.isFollow = false;
+      // 更新 noteList 中对应笔记的 is_follow 状态
+      noteList.value.forEach(note => {
+        if (note.creatorId === unfollow_id) {
+          note.isFollow = false;
+        }
+      });
       if(userInfo.value!==null){
         userInfo.value.follower_count -= 1;
         userStore.setUserInfo(userInfo.value);
@@ -771,8 +784,13 @@ const fetchNotes = async (noteType: string | null = null, userId: string) => {
         console.warn("后端返回了空的笔记列表（null），已转换为空数组");
       } else {
         // 分类过滤
+        console.log(noteType);
         if (noteType) {
-          notes = notes.filter((note: any) => note.note_type === noteType);
+          if(noteType!="找搭子"){
+            notes = notes.filter((note: any) => note.note_type === noteType);
+          }else{
+            notes = notes.filter((note: any) => note.is_finding_buddy === 1);
+          }
         }
 
         // 填充用户名和头像
@@ -1477,14 +1495,15 @@ const closeFullscreen = () => {
     font-weight: bold;
   }
 
+
   .follow-button {
     margin-left: auto; /* 将按钮推到右侧 */
-    padding: 6px 12px;
+    padding: 8px 14px;
     font-size: 14px;
-    background-color: #ff0000;
+    background-color:rgba(0, 86, 31, 0.7);
     color: white;
     border: none;
-    border-radius: 20px;
+    border-radius: 10px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -1493,11 +1512,11 @@ const closeFullscreen = () => {
   }
 
   .follow-button:hover {
-    background-color: #e92828; /* 鼠标悬停时的颜色 */
+    background-color: rgba(0, 86, 31, 0.9); /* 鼠标悬停时的颜色 */
   }
 
   .follow-button.followed {
-    background-color: #ff5c8d; /* 取消关注时的背景色 */
+    background-color: rgba(0, 86, 31, 0.5); /* 取消关注时的背景色 */
   }
 
   .follow-button:focus {

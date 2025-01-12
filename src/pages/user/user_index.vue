@@ -52,7 +52,7 @@
             <el-button type="danger" round>登录</el-button>
           </li>
           <li v-else :class="{ 'active-channel': isActiveRoute('/userInfo') }" @click="navigateTo('/userInfo')">
-            <img :class="'img_avatar'" :src="userInfo.avatar" alt="头像" />
+            <img :class="'img_avatar'" :src="userInfo.avatar || defaultAvatar" />
             <span class="channel">我</span>
           </li>
         </ul>
@@ -165,6 +165,7 @@
 
 <script lang="ts" setup>
 import { Search, House, Star, Bell, More, CirclePlus } from "@element-plus/icons-vue";
+import defaultAvatar from '@/assets/logo.png';
 import { useRouter, useRoute } from "vue-router";
 import Login from "@/pages/user/user_login.vue";
 import { useUserStore } from "@/store/user";

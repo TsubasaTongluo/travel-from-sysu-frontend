@@ -145,6 +145,7 @@ export default {
 
         if (response.data.code === 200 && response.data.status === "成功") {
           const { notifications } = response.data.data;
+          console.log("获取赞和收藏消息成功：",response.data);
 
           // 获取头像和用户名信息
           const promises = notifications.map(async (item) => {
