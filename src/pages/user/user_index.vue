@@ -260,7 +260,7 @@ const login = () => {
 const searchNotes = () => {
   console.log('click search')
   if (!keyword.value.trim()) {
-    alert("请输入搜索关键词！");
+    // alert("请输入搜索关键词！");
     return;
   }
 

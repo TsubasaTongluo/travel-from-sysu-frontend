@@ -25,14 +25,14 @@
               <button class="submit" type="submit">登录</button>
             </form>
           </div>
-          <div class="agreements">
+          <!-- <div class="agreements">
             <input type="checkbox" id="agree" v-model="isAgreed" />
             <label> 我已阅读并同意</label>
             <a class="links" target="_blank" href="https://agree.xiaohongshu.com/h5/terms/ZXXY20220331001/-1">《用户协议》</a>
             <a class="links" target="_blank" href="https://agree.xiaohongshu.com/h5/terms/ZXXY20220509001/-1">《隐私政策》</a>
             <br />
             <a class="links" target="_blank" href="https://oa.xiaohongshu.com/h5/terms/ZXXY20220516001/-1" style="margin-left: 25px">《儿童/青少年个人信息保护规则》</a>
-          </div>
+          </div> -->
           <div class="oauth-tip"><span class="oauth-tip-line">或</span></div>
           <div class="switch-tip" @click="switchToRegister">
             没有账号？<span class="highlight">去注册</span>
@@ -49,10 +49,10 @@
                 <input placeholder="输入账号" type="text" v-model="userRegister.username" required/>
               </label>
 
-              <div style="height: 16px"></div>
+              <!-- <div style="height: 16px"></div>
               <label class="email">
                 <input type="email" placeholder="输入邮箱（选填）" v-model="userRegister.email" />
-              </label>
+              </label> -->
 
               <div style="height: 16px"></div>
               <label class="auth-code">
@@ -105,7 +105,7 @@ const close = () => {
   isLogin.value = true;
   emit("close-login", false);
 };
-const isAgreed = ref(false);
+// const isAgreed = ref(false);
 const userStore = useUserStore();
 
 // 定义响应式数据
@@ -219,10 +219,10 @@ const registerMethod = () => {
 // 登录方法
 const loginMethod = () => {
   // 这里是登录逻辑的实现
-  if(!isAgreed.value){
-    ElMessage.error("请先同意用户协议！");
-    return;
-  }
+  // if(!isAgreed.value){
+  //   ElMessage.error("请先同意用户协议！");
+  //   return;
+  // }
 
   console.log(userLogin.value);
   login(userLogin.value)
@@ -245,7 +245,7 @@ const loginMethod = () => {
         userLogin.value = {username:"",password:"",};
 
         // 跳转至主界面，关闭登录界面
-        router.push({path: "/", query: {date: Date.now()}});
+        router.push({path: "/dashboard", query: {date: Date.now()}});
         emit("close-login", false);
 
       })

@@ -14,7 +14,7 @@
     <div class="notification-list">
       <div v-for="(message, index) in filteredNotifications" :key="index" class="notification-item">
         <div class="message-header">
-          <img :src="message.avatar || '/images/default-avatar.jpg'" alt="头像" class="avatar" />
+          <img :src="message.avatar || default_avatar" alt="头像" class="avatar" />
           <div class="details">
             <div>
               <span class="username">{{ message.username || '未知用户' }}</span>
@@ -45,6 +45,7 @@
 
 <script>
 import axios from "axios";
+import default_avatar from "@/assets/logo.png";
 import { useUserStore } from "@/store/user";  // 正确的路径引用
 
 export default {
@@ -53,6 +54,11 @@ export default {
       activeTab: "comments", // 当前激活的标签
       notifications: [], // 消息列表
     };
+  },
+
+  mounted() {
+    // 页面加载时自动切换到评论功能
+    this.switchToComments();
   },
 
   computed: {
@@ -235,10 +241,10 @@ export default {
         const response = await axios.get("/api/auth/getAvatar", {
           params: { uid: userId },
         });
-        return response.data.avatar || "/images/default-avatar.jpg";
+        return response.data.avatar || default_avatar;
       } catch (error) {
         console.error("获取头像失败：", error);
-        return "/images/default-avatar.jpg";
+        return default_avatar;
       }
     },
 
@@ -322,6 +328,8 @@ export default {
   height: 40px;
   border-radius: 50%;
   margin-right: 15px;
+  border: 1px solid #eee;
+  object-fit: cover;
 }
 
 .details {

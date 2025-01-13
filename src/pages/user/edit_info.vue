@@ -263,6 +263,7 @@ const updateInfo = async (formName:any) => {
       username: userstore.getUserInfo()?.username,
       new_username:formData.name,
       description: formData.description,
+      // email:formData.email,
       gender: formData.gender !== null ? Number(formData.gender) : undefined, // 如果为空，不传递该字段
       birthday:formData.birthday,
     });
@@ -289,15 +290,14 @@ const updateInfo = async (formName:any) => {
         };
         userstore.setUserInfo(updatedUser);  // 存储更新后的用户信息
       }
-
-      alert('信息修改成功!1秒后跳转至个人主页');
-      setTimeout(() => router.push('/userInfo'), 1000);
+      ElMessage.success('信息修改成功!');
+      setTimeout(() => router.push('/userInfo'), 200);
     } else {
       alert('修改失败');
     }
   } catch (error) {
-    alert(error.response.data.error);
-    console.error('更新信息出错：', error);
+    // alert(error.response.data.error);
+    ElMessage.error('信息修改失败!'+error.response.data.error);
   } finally {
     isNavigating.value = false;
   }
@@ -316,7 +316,7 @@ const updatePassword = async (formName:FormInstance | undefined) => {
     }
     console.log('submit!');
   }catch(error){
-    alert("密码长度不能小于8位！");
+    ElMessage.error("新旧密码不能为空且长度不能小于8位！");
     console.log('表单验证失败', error);  // 打印错误信息
     return;
   }
@@ -335,20 +335,20 @@ const updatePassword = async (formName:FormInstance | undefined) => {
       }
     });
     if (res.data.code === 200) {
-      alert('密码修改成功！1秒后跳转至个人主页');
+      ElMessage.success('密码修改成功！将跳转至个人主页');
       userstore.setPwd(formData.newPassword);
-      setTimeout(() => router.push('/userInfo'), 1000);
+      setTimeout(() => router.push('/userInfo'), 200);
     } else if (res.data.code === 401) {
       // 如果是原密码错误
-      alert(res.data.error);
+      ElMessage.error("原密码错误！");
     }
     else {
-      alert(res.data.error);
+      ElMessage.error("错误："+res.data.error);
     }
 
   } catch (error) {
     console.error('更新密码出错：', error);
-    alert('网络错误或服务器问题，请稍后重试');
+    // alert('网络错误或服务器问题，请稍后重试');
   } finally {
     isNavigating.value = false;
   }

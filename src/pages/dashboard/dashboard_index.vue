@@ -192,7 +192,7 @@
                   <div class="second-comments">
                     <div v-for="(secondComment) in visibleSecondComments(comment)" :key="secondComment.comment_id" class="second-comment-item">
                       <div class="comment-left">
-                        <img :src="secondComment.creator_avatar" class="comment-avatar-second" />
+                        <img :src="secondComment.creator_avatar ||default_avatar " class="comment-avatar-second" />
                       </div>
                       <div class="comment-right">
                         <span class="comment-username">{{ secondComment.creator_username }}
@@ -265,7 +265,7 @@
                     :placeholder="isLoggedIn() ? '说点什么……' : '登录后评论'"
                     v-model="commentContent"
                     @focus="handleInputFocus"
-                    @keyup.enter="isLoggedIn() && comment_note(selectedNote)"
+
                 ></textarea>
                 <button
                     v-if="isLoggedIn() && commentContent"
@@ -369,6 +369,7 @@ const selectedComment = ref<Comment | null>(null);
 onMounted(() => {
   eventBus.on("search", performSearch); // 监听事件
   const userInfo = userStore.getUserInfo();
+  getNoteList();
   if (userInfo && userInfo.username && userInfo.uid) {
     console.log('当前用户信息:', userInfo);
     fetchHotNotes(null, userInfo.uid);  // 使用 user_id
@@ -562,7 +563,6 @@ async function get_secondcomments(comment_id:number){
 }
 
 async function comment(note_id:number,note_creator_id:number) {
-  alert(note_creator_id);
   // 一级评论
   return await axios({
     url:"/api/comment/publishComment",
@@ -1728,30 +1728,67 @@ const closeFullscreen = () => {
   justify-content: center;
   align-items: center;
   z-index: 5000;
+  padding: 10px; /* 为小屏幕提供间距 */
 }
 
 .modal-content {
-  display: flex; /* 弹窗内使用 Flex 布局 */
+  display: flex;
   position: relative;
   background: #fff;
   padding: 20px;
   border-radius: 8px;
-  height: 650px;
-  width: 950px;
   text-align: center;
   z-index: 5000;
   gap: 20px; /* 左右间距 */
+
+  /* 使用最大宽高限制弹窗大小 */
+  max-width: 90%; /* 最大宽度为视口宽度的90% */
+  max-height: 90%; /* 最大高度为视口高度的90% */
+
+  /* 初始宽高，使用百分比适配 */
+  width: 950px;
+  height: 650px;
+
+  /* 自动调整宽高比例 */
+  overflow: auto;
+  box-sizing: border-box; /* 包括内边距在内计算宽高 */
 }
 
 .modal-image {
-  flex: 0 0 487.5px;
-  height: 650px;
+  flex: 0 0 auto;
+  width: 50%; /* 根据内容适配宽度 */
+  max-width: 487.5px; /* 最大宽度限制 */
+  height: auto;
+  max-height: 100%; /* 最大高度为容器高度 */
   display: flex;
   justify-content: center;
   align-items: center;
   background-color: #f7f7f7; /* 图片未加载时的背景色 */
   position: relative;
-  border-radius: 8px; /* 圆角 */
+  border-radius: 8px;
+}
+
+/* 图片内适配 */
+.modal-image img {
+  max-width: 100%; /* 保证图片宽度不超出容器 */
+  max-height: 100%; /* 保证图片高度不超出容器 */
+  border-radius: 8px;
+}
+
+/* 小屏幕优化 */
+@media (max-width: 768px) {
+  .modal-content {
+    flex-direction: column; /* 纵向排列内容 */
+    padding: 10px;
+    width: 100%;
+    height: auto;
+  }
+
+  .modal-image {
+    width: 100%; /* 图片宽度全屏 */
+    max-width: 100%; /* 防止超出容器 */
+    height: auto; /* 高度自适应 */
+  }
 
 
   img {
