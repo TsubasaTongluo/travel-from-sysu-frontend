@@ -1322,6 +1322,8 @@ const getNoteList = () => {
   fetchHotNotes(null, userId);  // 不管是否登录，都传递用户信息或空值
 };
 
+
+
 // 获取分类后的笔记列表
 const getNoteListByCategory = (id: string) => {
   const userInfo = userStore.getUserInfo();  // 每次调用时重新获取用户信息
@@ -1329,6 +1331,7 @@ const getNoteListByCategory = (id: string) => {
   categoryClass.value = id;
   noteList.value = [];  // 清空当前显示的笔记列表
   fetchNotes(id === '0' ? null : id, userId);  // 将 userId 传递给 fetchNotes
+  eventBus.emit("tag-clicked", " "); // 通过事件总线发送 tag
 };
 
 

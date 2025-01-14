@@ -6,7 +6,7 @@
           <img src="../../assets/logo.png" class="logo" />
         </a>
         <div class="tool-box"></div>
-        <div class="input-box" id="sujContainer">
+        <div class="input-box" id="sujContainer" v-show="showSearch">
           <input
             type="text"
             v-model="keyword"
@@ -169,7 +169,7 @@ import { useRouter, useRoute } from "vue-router";
 import Login from "@/pages/user/user_login.vue";
 import { useUserStore } from "@/store/user";
 import eventBus from "@/utils/eventBus";
-import { ref, onMounted, onUnmounted ,computed} from "vue";
+import { ref, onMounted, onUnmounted, computed, watch } from "vue";
 
 // 初始化loginShow为false，弹窗默认隐藏
 const loginShow = ref(false);
@@ -180,6 +180,16 @@ const padShow = ref(false);
 const userStore = useUserStore();
 
 const userInfo = ref<any>(null);  // 初始值为null，表示未登录
+
+const showSearch = ref(route.path === "/dashboard"); // 初始化为是否在 dashboard 页面
+
+// 监听路由变化
+watch(
+  () => route.path,
+  (newPath) => {
+    showSearch.value = newPath === "/dashboard"; // 在 dashboard 页显示搜索框
+  }
+);
 
 // 显示登录界面
 const showLogin = () => {
@@ -233,13 +243,20 @@ const handleTagClick = (tag: string) => {
   keyword.value = tag; // 将标签填入搜索框
 };
 
+const clearInput = (tag: string) => {
+
+  keyword.value = "";
+};
+
 // 监听和清理事件总线
 onMounted(() => {
   eventBus.on("tag-clicked", handleTagClick); // 监听事件
+  eventBus.on("tag-clear", clearInput); // 监听事件
 });
 
 onUnmounted(() => {
   eventBus.off("tag-clicked", handleTagClick); // 取消监听
+  eventBus.off("tag-clear", clearInput); // 监听事件
 });
 
 
