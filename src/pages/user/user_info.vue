@@ -1602,126 +1602,161 @@ function formatDate_comment(input) {
   }
 
   .modal-content {
-    display: flex; /* 弹窗内使用 Flex 布局 */
-    position: relative;
-    background: #fff;
-    padding: 20px;
-    border-radius: 8px;
-    height: 650px;
-    width: 950px;
-    text-align: center;
-    z-index: 5000;
-    gap: 20px; /* 左右间距 */
+  display: flex;
+  position: relative;
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+  z-index: 5000;
+  gap: 20px; /* 左右间距 */
+
+  /* 使用最大宽高限制弹窗大小 */
+  max-width: 90%; /* 最大宽度为视口宽度的90% */
+  max-height: 90%; /* 最大高度为视口高度的90% */
+
+  /* 初始宽高，使用百分比适配 */
+  width: 950px;
+  height: 650px;
+
+  /* 自动调整宽高比例 */
+  overflow: auto;
+  box-sizing: border-box; /* 包括内边距在内计算宽高 */
+}
+
+.modal-image {
+  flex: 0 0 auto;
+  width: 50%; /* 根据内容适配宽度 */
+  max-width: 487.5px; /* 最大宽度限制 */
+  height: auto;
+  max-height: 100%; /* 最大高度为容器高度 */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #f7f7f7; /* 图片未加载时的背景色 */
+  position: relative;
+  border-radius: 8px;
+}
+
+/* 图片内适配 */
+.modal-image img {
+  max-width: 100%; /* 保证图片宽度不超出容器 */
+  max-height: 100%; /* 保证图片高度不超出容器 */
+  border-radius: 8px;
+}
+
+/* 小屏幕优化 */
+@media (max-width: 768px) {
+  .modal-content {
+    flex-direction: column; /* 纵向排列内容 */
+    padding: 10px;
+    width: 100%;
+    height: auto;
   }
 
   .modal-image {
-    flex: 0 0 487.5px;
-    height: 650px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background-color: #f7f7f7; /* 图片未加载时的背景色 */
-    position: relative;
+    width: 100%; /* 图片宽度全屏 */
+    max-width: 100%; /* 防止超出容器 */
+    height: auto; /* 高度自适应 */
+  }
+
+
+  img {
+    max-width: 100%; /* 限制图片最大宽度 */
+    max-height: 100%; /* 限制图片最大高度 */
+    object-fit: contain; /* 保持图片比例，避免拉伸 */
     border-radius: 8px; /* 圆角 */
-
-
-    img {
-      max-width: 100%; /* 限制图片最大宽度 */
-      max-height: 100%; /* 限制图片最大高度 */
-      object-fit: contain; /* 保持图片比例，避免拉伸 */
-      border-radius: 8px; /* 圆角 */
-      &:hover{
-        cursor: zoom-in;  // cursor显示放大鼠标图标
-      }
-    }
-
-    .image-navigation {
-      position: absolute;
-      top: 50%;
-      left: 0;
-      right: 0;
-      display: flex;
-      justify-content: space-between;
-      transform: translateY(-50%);
-      z-index: 1;
-      padding: 0 5px;
-      visibility: hidden;
-    }
-
-    .image-index {
-      color: #fff;
-      font-size: 14px;
-      background: rgba(0, 0, 0, 0.35);
-      padding: 5px 10px;
-      border-radius: 10px;
-      position: absolute;
-      top: -295px;
-      right: 15px;
-      visibility: hidden; /* 默认隐藏 */
-      user-select:none;   /* 不可选中文字以免点击放大图片的时候干扰 */
-    }
-
-    .nav-button {
-      color: #fff;
-      border: none;
-      font-weight: bold;
-      font-size: 18px;
-      height: 35px;
-      width: 35px;
-      cursor: pointer;
-      border-radius: 50%;
-      display: inline-flex;
-      justify-content: center;
-      align-items: center;
-      visibility: hidden; /* 默认隐藏按钮 */
-      user-select:none;   /* 不可选中文字以免点击放大图片的时候干扰 */
-      backdrop-filter:blur(1px);
-    }
-
-    &:hover .image-index {
-      visibility: visible; /* 鼠标悬停时显示按钮 */
-    }
-
-    &:hover .nav-button {
-      visibility: visible; /* 鼠标悬停时显示按钮 */
-      background: rgba(0, 0, 0, 0.3);
-    }
-
-    &:hover .nav-button:disabled {
-      background: rgba(0, 0, 0, 0.1);
-      cursor: not-allowed;
-    }
-
-    .video-cover {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      background: #f7f7f7;
-    }
-
-    .play-btn {
-      background-color: rgba(0, 0, 0, 0.5);
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      font-size: 16px;
-      cursor: pointer;
-      border-radius: 5px;
-    }
-
-    video {
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
-      border-radius: 8px;
+    &:hover{
+      cursor: zoom-in;  // cursor显示放大鼠标图标
     }
   }
 
+  .image-navigation {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    transform: translateY(-50%);
+    z-index: 1;
+    padding: 0 5px;
+    visibility: hidden;
+  }
+
+  .image-index {
+    color: #fff;
+    font-size: 14px;
+    background: rgba(0, 0, 0, 0.35);
+    padding: 5px 10px;
+    border-radius: 10px;
+    position: absolute;
+    top: -295px;
+    right: 15px;
+    visibility: hidden; /* 默认隐藏 */
+    user-select:none;   /* 不可选中文字以免点击放大图片的时候干扰 */
+  }
+
+  .nav-button {
+    color: #fff;
+    border: none;
+    font-weight: bold;
+    font-size: 18px;
+    height: 35px;
+    width: 35px;
+    cursor: pointer;
+    border-radius: 50%;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    visibility: hidden; /* 默认隐藏按钮 */
+    user-select:none;   /* 不可选中文字以免点击放大图片的时候干扰 */
+    backdrop-filter:blur(1px);
+  }
+
+  &:hover .image-index {
+    visibility: visible; /* 鼠标悬停时显示按钮 */
+  }
+
+  &:hover .nav-button {
+    visibility: visible; /* 鼠标悬停时显示按钮 */
+    background: rgba(0, 0, 0, 0.3);
+  }
+
+  &:hover .nav-button:disabled {
+    background: rgba(0, 0, 0, 0.1);
+    cursor: not-allowed;
+  }
+
+  .video-cover {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #f7f7f7;
+  }
+
+  .play-btn {
+    background-color: rgba(0, 0, 0, 0.5);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 5px;
+  }
+
+  video {
+    max-width: 100%;
+    max-height: 640px;
+    object-fit: contain;
+    border-radius: 8px;
+  }
+}
 
   .modal-text {
     flex: 1;
