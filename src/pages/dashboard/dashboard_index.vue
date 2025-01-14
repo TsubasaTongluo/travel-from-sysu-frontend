@@ -164,7 +164,7 @@
             <div v-if="commentList && commentList.length > 0" class="comments-list">
               <div v-for="comment in commentList" :key="comment.comment_id" class="comment-item">
                 <div class="comment-left">
-                  <img :src="comment.creator_avatar" class="comment-avatar" />
+                  <img :src="comment.creator_avatar||default_avatar" class="comment-avatar" />
                 </div>
                 <div class="comment-right">
                   <span class="comment-username">{{ comment.creator_username }}
@@ -192,7 +192,7 @@
                   <div class="second-comments">
                     <div v-for="(secondComment) in visibleSecondComments(comment)" :key="secondComment.comment_id" class="second-comment-item">
                       <div class="comment-left">
-                        <img :src="secondComment.creator_avatar" class="comment-avatar-second" />
+                        <img :src="secondComment.creator_avatar ||default_avatar " class="comment-avatar-second" />
                       </div>
                       <div class="comment-right">
                         <span class="comment-username">{{ secondComment.creator_username }}
@@ -265,7 +265,7 @@
                     :placeholder="isLoggedIn() ? '说点什么……' : '登录后评论'"
                     v-model="commentContent"
                     @focus="handleInputFocus"
-                    @keyup.enter="isLoggedIn() && comment_note(selectedNote)"
+
                 ></textarea>
                 <button
                     v-if="isLoggedIn() && commentContent"
@@ -369,6 +369,7 @@ const selectedComment = ref<Comment | null>(null);
 onMounted(() => {
   eventBus.on("search", performSearch); // 监听事件
   const userInfo = userStore.getUserInfo();
+  getNoteList();
   if (userInfo && userInfo.username && userInfo.uid) {
     console.log('当前用户信息:', userInfo);
     fetchHotNotes(null, userInfo.uid);  // 使用 user_id
@@ -412,7 +413,7 @@ const comment_note = async (note:Note) =>{
   // todo: comment 接口
   // console.log("comment!");
   try {
-    const res = await comment(note.note_id);
+    const res = await comment(note.note_id,note.creatorId);
     if(res.data.code===200){
       note.comment_counts+=1;
       // todo: 更新评论
@@ -561,7 +562,7 @@ async function get_secondcomments(comment_id:number){
   });
 }
 
-async function comment(note_id:number) {
+async function comment(note_id:number,note_creator_id:number) {
   // 一级评论
   return await axios({
     url:"/api/comment/publishComment",
@@ -569,6 +570,7 @@ async function comment(note_id:number) {
     data: {
       note_id: note_id,
       creator_id: userStore.getUserInfo()?.uid,
+      reply_uid:note_creator_id,
       level: 1,
       content: commentContent.value,
     },
@@ -1008,9 +1010,16 @@ const handleInputClick = () => {
 const follow_note = async (note:Note) =>{
   try {
     const res = await follow(note.creatorId);
+    const follow_id = note.creatorId;
     // console.log("关注结果",res);
     if(res.data.code===200){
       note.isFollow = true;
+      // 更新 noteList 中对应笔记的 is_follow 状态
+      noteList.value.forEach(note => {
+        if (note.creatorId === follow_id) {
+          note.isFollow = true;
+        }
+      });
       // ElMessage.success("关注成功");
       // todo: 本地关注数+1
       if(userInfo.value!==null){
@@ -1028,8 +1037,15 @@ const follow_note = async (note:Note) =>{
 const unfollow_note = async (note:Note) =>{
   try {
     const res = await unfollow(note.creatorId);
+    const unfollow_id = note.creatorId;
     if(res.data.code===200){
       note.isFollow = false;
+      // 更新 noteList 中对应笔记的 is_follow 状态
+      noteList.value.forEach(note => {
+        if (note.creatorId === unfollow_id) {
+          note.isFollow = false;
+        }
+      });
       if(userInfo.value!==null){
         userInfo.value.follower_count -= 1;
         userStore.setUserInfo(userInfo.value);
@@ -1715,30 +1731,67 @@ const closeFullscreen = () => {
   justify-content: center;
   align-items: center;
   z-index: 5000;
+  padding: 10px; /* 为小屏幕提供间距 */
 }
 
 .modal-content {
-  display: flex; /* 弹窗内使用 Flex 布局 */
+  display: flex;
   position: relative;
   background: #fff;
   padding: 20px;
   border-radius: 8px;
-  height: 650px;
-  width: 950px;
   text-align: center;
   z-index: 5000;
   gap: 20px; /* 左右间距 */
+
+  /* 使用最大宽高限制弹窗大小 */
+  max-width: 90%; /* 最大宽度为视口宽度的90% */
+  max-height: 90%; /* 最大高度为视口高度的90% */
+
+  /* 初始宽高，使用百分比适配 */
+  width: 950px;
+  height: 650px;
+
+  /* 自动调整宽高比例 */
+  overflow: auto;
+  box-sizing: border-box; /* 包括内边距在内计算宽高 */
 }
 
 .modal-image {
-  flex: 0 0 487.5px;
-  height: 650px;
+  flex: 0 0 auto;
+  width: 50%; /* 根据内容适配宽度 */
+  max-width: 487.5px; /* 最大宽度限制 */
+  height: auto;
+  max-height: 100%; /* 最大高度为容器高度 */
   display: flex;
   justify-content: center;
   align-items: center;
   background-color: #f7f7f7; /* 图片未加载时的背景色 */
   position: relative;
-  border-radius: 8px; /* 圆角 */
+  border-radius: 8px;
+}
+
+/* 图片内适配 */
+.modal-image img {
+  max-width: 100%; /* 保证图片宽度不超出容器 */
+  max-height: 100%; /* 保证图片高度不超出容器 */
+  border-radius: 8px;
+}
+
+/* 小屏幕优化 */
+@media (max-width: 768px) {
+  .modal-content {
+    flex-direction: column; /* 纵向排列内容 */
+    padding: 10px;
+    width: 100%;
+    height: auto;
+  }
+
+  .modal-image {
+    width: 100%; /* 图片宽度全屏 */
+    max-width: 100%; /* 防止超出容器 */
+    height: auto; /* 高度自适应 */
+  }
 
 
   img {
@@ -1839,6 +1892,95 @@ const closeFullscreen = () => {
 }
 
 
+video {
+  width: 100%; /* 默认宽度占满父容器 */
+  height: auto; /* 高度自动调整 */
+  max-height: 100vh; /* 限制高度为视口高度的 80% */
+  border-radius: 8px; /* 圆角 */
+  object-fit: contain; /* 保持视频比例，避免拉伸 */
+  background-color: #000; /* 设置视频背景色 */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5); /* 添加阴影效果 */
+}
+
+.image-navigation {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    transform: translateY(-50%);
+    z-index: 1;
+    padding: 0 5px;
+    visibility: hidden;
+  }
+
+  .image-index {
+    color: #fff;
+    font-size: 14px;
+    background: rgba(0, 0, 0, 0.35);
+    padding: 5px 10px;
+    border-radius: 10px;
+    position: absolute;
+    top: -295px;
+    right: 15px;
+    visibility: hidden; /* 默认隐藏 */
+    user-select:none;   /* 不可选中文字以免点击放大图片的时候干扰 */
+  }
+
+  .nav-button {
+    color: #fff;
+    border: none;
+    font-weight: bold;
+    font-size: 18px;
+    height: 35px;
+    width: 35px;
+    cursor: pointer;
+    border-radius: 50%;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    visibility: hidden; /* 默认隐藏按钮 */
+    user-select:none;   /* 不可选中文字以免点击放大图片的时候干扰 */
+    backdrop-filter:blur(1px);
+  }
+
+  &:hover .image-index {
+    visibility: visible; /* 鼠标悬停时显示按钮 */
+  }
+
+  &:hover .nav-button {
+    visibility: visible; /* 鼠标悬停时显示按钮 */
+    background: rgba(0, 0, 0, 0.3);
+  }
+
+  &:hover .nav-button:disabled {
+    background: rgba(0, 0, 0, 0.1);
+    cursor: not-allowed;
+  }
+
+  .video-cover {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #f7f7f7;
+  }
+
+  .play-btn {
+    background-color: rgba(0, 0, 0, 0.5);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 5px;
+  }
+
 .modal-text {
   flex: 1;
   display: flex;
@@ -1900,12 +2042,12 @@ const closeFullscreen = () => {
 
   .follow-button {
     margin-left: auto; /* 将按钮推到右侧 */
-    padding: 6px 12px;
+    padding: 8px 14px;
     font-size: 14px;
-    background-color: #ff0000;
+    background-color:rgba(0, 86, 31, 0.7);
     color: white;
     border: none;
-    border-radius: 20px;
+    border-radius: 10px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -1914,11 +2056,11 @@ const closeFullscreen = () => {
   }
 
   .follow-button:hover {
-    background-color: #e92828; /* 鼠标悬停时的颜色 */
+    background-color: rgba(0, 86, 31, 0.9); /* 鼠标悬停时的颜色 */
   }
 
   .follow-button.followed {
-    background-color: #ff5c8d; /* 取消关注时的背景色 */
+    background-color: rgba(0, 86, 31, 0.5); /* 取消关注时的背景色 */
   }
 
   .follow-button:focus {

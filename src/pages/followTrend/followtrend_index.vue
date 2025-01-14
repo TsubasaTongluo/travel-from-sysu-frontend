@@ -320,9 +320,10 @@ const noteList = ref<Note[]>([]); // 从后端获取的笔记数据
 const categoryClass = ref("0"); // 当前分类，"0" 表示推荐
 
 const categoryList = ref([
-  { id: "旅行", title: "旅行" },
-  { id: "外出", title: "外出" },
-  { id: "返乡", title: "返乡" }
+  { id: "旅行", title: "旅游" },
+  { id: "外出", title: "活动外出" },
+  { id: "返乡", title: "返乡记录" },
+  { id: "找搭子", title: "找搭子专区" }
 ]);
 
 const isLoading = ref(false); // 加载状态
@@ -522,7 +523,7 @@ const comment_note = async (note:Note) =>{
   // todo: comment 接口
   // console.log("comment!");
   try {
-    const res = await comment(note.note_id);
+    const res = await comment(note.note_id,note.creatorId);
     if(res.data.code===200){
       note.comment_counts+=1;
       // todo: 更新评论
@@ -648,7 +649,8 @@ async function get_secondcomments(comment_id:number){
   });
 }
 
-async function comment(note_id:number) {
+async function comment(note_id:number,note_creator_id:number) {
+  alert(note_creator_id);
   // 一级评论
   return await axios({
     url:"/api/comment/publishComment",
@@ -656,6 +658,7 @@ async function comment(note_id:number) {
     data: {
       note_id: note_id,
       creator_id: userStore.getUserInfo()?.uid,
+      reply_uid:note_creator_id,
       level: 1,
       content: commentContent.value,
     },
@@ -689,11 +692,16 @@ async function reply(data:{
 const follow_note = async (note:Note) =>{
   try {
     const res = await follow(note.creatorId);
+    const follow_id = note.creatorId;
     // console.log("关注结果",res);
     if(res.data.code===200){
       note.isFollow = true;
-      // ElMessage.success("关注成功");
-      // todo: 本地关注数+1
+      // 更新 noteList 中对应笔记的 is_follow 状态
+      noteList.value.forEach(note => {
+        if (note.creatorId === follow_id) {
+          note.isFollow = true;
+        }
+      });
       if(userInfo.value!==null){
         userInfo.value.follower_count += 1;
         userStore.setUserInfo(userInfo.value);
@@ -709,8 +717,15 @@ const follow_note = async (note:Note) =>{
 const unfollow_note = async (note:Note) =>{
   try {
     const res = await unfollow(note.creatorId);
+    const unfollow_id = note.creatorId;
     if(res.data.code===200){
       note.isFollow = false;
+      // 更新 noteList 中对应笔记的 is_follow 状态
+      noteList.value.forEach(note => {
+        if (note.creatorId === unfollow_id) {
+          note.isFollow = false;
+        }
+      });
       if(userInfo.value!==null){
         userInfo.value.follower_count -= 1;
         userStore.setUserInfo(userInfo.value);
@@ -771,8 +786,13 @@ const fetchNotes = async (noteType: string | null = null, userId: string) => {
         console.warn("后端返回了空的笔记列表（null），已转换为空数组");
       } else {
         // 分类过滤
+        console.log(noteType);
         if (noteType) {
-          notes = notes.filter((note: any) => note.note_type === noteType);
+          if(noteType!="找搭子"){
+            notes = notes.filter((note: any) => note.note_type === noteType);
+          }else{
+            notes = notes.filter((note: any) => note.is_finding_buddy === 1);
+          }
         }
 
         // 填充用户名和头像
@@ -1297,27 +1317,63 @@ const closeFullscreen = () => {
 }
 
 .modal-content {
-  display: flex; /* 弹窗内使用 Flex 布局 */
+  display: flex;
   position: relative;
   background: #fff;
   padding: 20px;
   border-radius: 8px;
-  height: 650px;
-  width: 950px;
   text-align: center;
   z-index: 5000;
   gap: 20px; /* 左右间距 */
+
+  /* 使用最大宽高限制弹窗大小 */
+  max-width: 90%; /* 最大宽度为视口宽度的90% */
+  max-height: 90%; /* 最大高度为视口高度的90% */
+
+  /* 初始宽高，使用百分比适配 */
+  width: 950px;
+  height: 650px;
+
+  /* 自动调整宽高比例 */
+  overflow: auto;
+  box-sizing: border-box; /* 包括内边距在内计算宽高 */
 }
 
 .modal-image {
-  flex: 0 0 487.5px;
-  height: 650px;
+  flex: 0 0 auto;
+  width: 50%; /* 根据内容适配宽度 */
+  max-width: 487.5px; /* 最大宽度限制 */
+  height: auto;
+  max-height: 100%; /* 最大高度为容器高度 */
   display: flex;
   justify-content: center;
   align-items: center;
   background-color: #f7f7f7; /* 图片未加载时的背景色 */
   position: relative;
-  border-radius: 8px; /* 圆角 */
+  border-radius: 8px;
+}
+
+/* 图片内适配 */
+.modal-image img {
+  max-width: 100%; /* 保证图片宽度不超出容器 */
+  max-height: 100%; /* 保证图片高度不超出容器 */
+  border-radius: 8px;
+}
+
+/* 小屏幕优化 */
+@media (max-width: 768px) {
+  .modal-content {
+    flex-direction: column; /* 纵向排列内容 */
+    padding: 10px;
+    width: 100%;
+    height: auto;
+  }
+
+  .modal-image {
+    width: 100%; /* 图片宽度全屏 */
+    max-width: 100%; /* 防止超出容器 */
+    height: auto; /* 高度自适应 */
+  }
 
 
   img {
@@ -1477,14 +1533,15 @@ const closeFullscreen = () => {
     font-weight: bold;
   }
 
+
   .follow-button {
     margin-left: auto; /* 将按钮推到右侧 */
-    padding: 6px 12px;
+    padding: 8px 14px;
     font-size: 14px;
-    background-color: #ff0000;
+    background-color:rgba(0, 86, 31, 0.7);
     color: white;
     border: none;
-    border-radius: 20px;
+    border-radius: 10px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -1493,11 +1550,11 @@ const closeFullscreen = () => {
   }
 
   .follow-button:hover {
-    background-color: #e92828; /* 鼠标悬停时的颜色 */
+    background-color: rgba(0, 86, 31, 0.9); /* 鼠标悬停时的颜色 */
   }
 
   .follow-button.followed {
-    background-color: #ff5c8d; /* 取消关注时的背景色 */
+    background-color: rgba(0, 86, 31, 0.5); /* 取消关注时的背景色 */
   }
 
   .follow-button:focus {
