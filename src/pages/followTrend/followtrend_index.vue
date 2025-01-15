@@ -653,7 +653,6 @@ async function get_secondcomments(comment_id:number){
 }
 
 async function comment(note_id:number,note_creator_id:number) {
-  alert(note_creator_id);
   // 一级评论
   return await axios({
     url:"/api/comment/publishComment",
