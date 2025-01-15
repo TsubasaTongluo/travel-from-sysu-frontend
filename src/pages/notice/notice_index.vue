@@ -188,6 +188,7 @@ export default {
 
     // 切换到 "新增关注" 功能
     switchToFollows() {
+      this.notifications = [];
       this.activeTab = "follows";
       console.log("切换到新增关注标签");  // 添加检查信息
       this.fetchFollows();

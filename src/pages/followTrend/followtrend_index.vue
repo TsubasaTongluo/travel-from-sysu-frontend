@@ -327,6 +327,9 @@ const categoryList = ref([
 ]);
 
 const isLoading = ref(false); // 加载状态
+// 游标，用于分页
+let cursor = ""; // 全局变量，存储当前游标
+const initialCursor = ""; // 初始游标值
 
 const isModalVisible = ref(false);
 
@@ -768,23 +771,27 @@ const fetchNotes = async (noteType: string | null = null, userId: string) => {
 
   try {
     const num = 10;  // 请求的条数，默认为 10
-    const cursor = ''; // 游标为空，或者你可以传递一个有效的时间戳
 
     const response = await axios.get('/api/note/getUserFoNotes', {
       params: {
         user_id: userId, // 用户id
         num: num,         // 请求的条数
-        cursor: '',   // 游标为空
+        cursor: cursor,   // 游标为空
       },
     });
 
     if (response.data && response.data.data && response.data.data.notes) {
-      let notes = response.data.data.notes;
+      let { notes, nextCursor } = response.data.data;
+
+      if(!notes){
+        fetchNotes(noteType,userId);
+        return
+      }
 
       if (notes === null) {
         noteList.value = [];
         console.warn("后端返回了空的笔记列表（null），已转换为空数组");
-      } else {
+      } else if(notes.length >0) {
         // 分类过滤
         console.log(noteType);
         if (noteType) {
@@ -839,16 +846,24 @@ const fetchNotes = async (noteType: string | null = null, userId: string) => {
           isCollection: note.status.is_collect,  // 后端返回这个字段来表示是否已收藏
           isFollow: note.status.is_follow,
         }));
+        cursor = nextCursor; // 更新游标
+      }else{
+        console.warn("下一页没有更多数据");
+        cursor = initialCursor; // 重置游标
       }
     } else {
       console.error('后端返回数据格式错误：缺少 notes 字段');
       noteList.value = [];
+      cursor = initialCursor; // 重置游标
+      fetchNotes(noteType,userId);
     }
     isLoading.value = false;
   } catch (error) {
     console.error('获取笔记数据失败', error);
     isLoading.value = false;
     noteList.value = [];
+    cursor = initialCursor; // 重置游标
+    fetchNotes(noteType,userId);
   }
 };
 
@@ -899,6 +914,7 @@ const fetchAvatarById = async (userId: number): Promise<string | null> => {
 
 
 const getNoteList = () => {
+  cursor = initialCursor;
   const userInfo = userStore.getUserInfo();  // 每次调用时重新获取用户信息
   const userId = userInfo?.uid; // 确保 userId 存在
 
@@ -912,6 +928,7 @@ const getNoteList = () => {
 };
 
 const getNoteListByCategory = (id: string) => {
+  cursor = initialCursor;
   const userInfo = userStore.getUserInfo();  // 每次调用时重新获取用户信息
   const userId = userInfo?.uid;  // 获取 userId
 
@@ -1473,6 +1490,94 @@ const closeFullscreen = () => {
   }
 }
 
+video {
+  width: 100%; /* 默认宽度占满父容器 */
+  height: auto; /* 高度自动调整 */
+  max-height: 100vh; /* 限制高度为视口高度的 80% */
+  border-radius: 8px; /* 圆角 */
+  object-fit: contain; /* 保持视频比例，避免拉伸 */
+  background-color: #000; /* 设置视频背景色 */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5); /* 添加阴影效果 */
+}
+
+.image-navigation {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    transform: translateY(-50%);
+    z-index: 1;
+    padding: 0 5px;
+    visibility: hidden;
+  }
+
+  .image-index {
+    color: #fff;
+    font-size: 14px;
+    background: rgba(0, 0, 0, 0.35);
+    padding: 5px 10px;
+    border-radius: 10px;
+    position: absolute;
+    top: -295px;
+    right: 15px;
+    visibility: hidden; /* 默认隐藏 */
+    user-select:none;   /* 不可选中文字以免点击放大图片的时候干扰 */
+  }
+
+  .nav-button {
+    color: #fff;
+    border: none;
+    font-weight: bold;
+    font-size: 18px;
+    height: 35px;
+    width: 35px;
+    cursor: pointer;
+    border-radius: 50%;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    visibility: hidden; /* 默认隐藏按钮 */
+    user-select:none;   /* 不可选中文字以免点击放大图片的时候干扰 */
+    backdrop-filter:blur(1px);
+  }
+
+  &:hover .image-index {
+    visibility: visible; /* 鼠标悬停时显示按钮 */
+  }
+
+  &:hover .nav-button {
+    visibility: visible; /* 鼠标悬停时显示按钮 */
+    background: rgba(0, 0, 0, 0.3);
+  }
+
+  &:hover .nav-button:disabled {
+    background: rgba(0, 0, 0, 0.1);
+    cursor: not-allowed;
+  }
+
+  .video-cover {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #f7f7f7;
+  }
+
+  .play-btn {
+    background-color: rgba(0, 0, 0, 0.5);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 5px;
+  }
 
 .modal-text {
   flex: 1;

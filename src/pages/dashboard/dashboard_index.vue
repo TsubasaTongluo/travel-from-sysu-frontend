@@ -342,6 +342,9 @@ const categoryList = ref([
 ]);
 
 const isLoading = ref(false); // 加载状态
+// 游标，用于分页
+let cursor = ""; // 全局变量，存储当前游标
+const initialCursor = ""; // 初始游标值
 
 const isModalVisible = ref(false);
 
@@ -1125,17 +1128,20 @@ const fetchNotes = async (noteType: string | null = null, userId: string | null 
         note_type: noteType || '',  // 分类过滤（如果有的话）
         user_id: userId || 0, // 用户id，未登录时使用0
         num: num,         // 请求的条数
-        cursor: '',   // 游标为空
+        cursor: cursor,   // 游标为空
       },
     });
 
     if (response.data && response.data.data && response.data.data.notes) {
-      let notes = response.data.data.notes;
+      // let notes = response.data.data.notes;
+      let { notes, nextCursor } = response.data.data;
+      console.log("next cursor:"+nextCursor);
 
       if (notes === null) {
         noteList.value = [];
         console.warn("后端返回了空的笔记列表（null），已转换为空数组");
-      } else {
+        cursor = initialCursor; // 重置游标
+      } else if (notes && notes.length > 0) {
         // 分类过滤
         if (noteType&&noteType!="找搭子") {
           notes = notes.filter((note: any) => note.note_type === noteType);
@@ -1185,16 +1191,20 @@ const fetchNotes = async (noteType: string | null = null, userId: string | null 
           isCollection: note.status.is_collect,  // 后端返回这个字段来表示是否已收藏
           isFollow: note.status.is_follow,
         }));
+        cursor = nextCursor;
       }
     } else {
       console.error('后端返回数据格式错误：缺少 notes 字段');
       noteList.value = [];
+      cursor = initialCursor; // 重置游标
+      fetchNotes(noteType,userId);
     }
     isLoading.value = false;
   } catch (error) {
     console.error('获取笔记数据失败', error);
     isLoading.value = false;
     noteList.value = [];
+    cursor = initialCursor; // 重置游标
   }
 };
 
@@ -1208,24 +1218,26 @@ const fetchHotNotes = async (noteType: string | null = null, userId: string | nu
   }
 
   try {
-    const num = 15;  // 请求的条数，默认为 10
+    const num = 10;  // 请求的条数，默认为 10
+    console.log("requset cursor:"+cursor);
 
     const response = await axios.get('/api/note/getHotRecommendations', {
       params: {
         note_type: noteType || '',  // 分类过滤（如果有的话）
         user_id: userId || 0, // 用户id，未登录时使用0
         num: num,         // 请求的条数
-        cursor: '',   // 游标为空
+        cursor: cursor,   // 游标为空
       },
     });
 
     if (response.data && response.data.data && response.data.data.notes) {
-      let notes = response.data.data.notes;
+      let { notes, nextCursor } = response.data.data;
+      console.log("next cursor:"+nextCursor);
 
       if (notes === null) {
         noteList.value = [];
         console.warn("后端返回了空的笔记列表（null），已转换为空数组");
-      } else {
+      } else if(notes.length >0){
         // 分类过滤
         if (noteType) {
           notes = notes.filter((note: any) => note.note_type === noteType);
@@ -1275,16 +1287,23 @@ const fetchHotNotes = async (noteType: string | null = null, userId: string | nu
           isCollection: note.status.is_collect,  // 后端返回这个字段来表示是否已收藏
           isFollow: note.status.is_follow,
         }));
+        cursor = nextCursor; // 更新游标
+      }else{
+        console.warn("下一页没有更多数据");
+        cursor = initialCursor; // 重置游标
       }
     } else {
       console.error('后端返回数据格式错误：缺少 notes 字段');
       noteList.value = [];
+      cursor = initialCursor; // 重置游标
+      fetchHotNotes(noteType,userId);
     }
     isLoading.value = false;
   } catch (error) {
     console.error('获取笔记数据失败', error);
     isLoading.value = false;
     noteList.value = [];
+    cursor = initialCursor; // 重置游标
   }
 };
 
@@ -1333,6 +1352,7 @@ const fetchAvatarById = async (userId: number): Promise<string | null> => {
 const getNoteList = () => {
   const userInfo = userStore.getUserInfo();  // 每次调用时重新获取用户信息
   const userId = userInfo?.uid || null;  // 如果没有登录，userId 默认为 null
+  cursor = initialCursor; // 重置游标
 
   categoryClass.value = '0';  // 默认显示推荐类别
   fetchHotNotes(null, userId);  // 不管是否登录，都传递用户信息或空值
@@ -1346,6 +1366,7 @@ const getNoteListByCategory = (id: string) => {
   const userId = userInfo?.uid || null;  // 如果没有登录，userId 默认为 null
   categoryClass.value = id;
   noteList.value = [];  // 清空当前显示的笔记列表
+  cursor = initialCursor;
   fetchNotes(id === '0' ? null : id, userId);  // 将 userId 传递给 fetchNotes
   eventBus.emit("tag-clicked", " "); // 通过事件总线发送 tag
 };
@@ -1806,12 +1827,12 @@ const closeFullscreen = () => {
 
   .image-navigation {
     position: absolute;
-    top: 50%;
+    top: 30%;
     left: 0;
     right: 0;
     display: flex;
     justify-content: space-between;
-    transform: translateY(-50%);
+    transform: translateY(-90%);
     z-index: 1;
     padding: 0 5px;
     visibility: hidden;

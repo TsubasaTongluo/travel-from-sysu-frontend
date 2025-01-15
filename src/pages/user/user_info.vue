@@ -1758,6 +1758,96 @@ function formatDate_comment(input) {
   }
 }
 
+
+video {
+  width: 100%; /* 默认宽度占满父容器 */
+  height: auto; /* 高度自动调整 */
+  max-height: 100vh; /* 限制高度为视口高度的 80% */
+  border-radius: 8px; /* 圆角 */
+  object-fit: contain; /* 保持视频比例，避免拉伸 */
+  background-color: #000; /* 设置视频背景色 */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5); /* 添加阴影效果 */
+}
+
+.image-navigation {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    transform: translateY(-50%);
+    z-index: 1;
+    padding: 0 5px;
+    visibility: hidden;
+  }
+
+  .image-index {
+    color: #fff;
+    font-size: 14px;
+    background: rgba(0, 0, 0, 0.35);
+    padding: 5px 10px;
+    border-radius: 10px;
+    position: absolute;
+    top: -295px;
+    right: 15px;
+    visibility: hidden; /* 默认隐藏 */
+    user-select:none;   /* 不可选中文字以免点击放大图片的时候干扰 */
+  }
+
+  .nav-button {
+    color: #fff;
+    border: none;
+    font-weight: bold;
+    font-size: 18px;
+    height: 35px;
+    width: 35px;
+    cursor: pointer;
+    border-radius: 50%;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    visibility: hidden; /* 默认隐藏按钮 */
+    user-select:none;   /* 不可选中文字以免点击放大图片的时候干扰 */
+    backdrop-filter:blur(1px);
+  }
+
+  &:hover .image-index {
+    visibility: visible; /* 鼠标悬停时显示按钮 */
+  }
+
+  &:hover .nav-button {
+    visibility: visible; /* 鼠标悬停时显示按钮 */
+    background: rgba(0, 0, 0, 0.3);
+  }
+
+  &:hover .nav-button:disabled {
+    background: rgba(0, 0, 0, 0.1);
+    cursor: not-allowed;
+  }
+
+  .video-cover {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #f7f7f7;
+  }
+
+  .play-btn {
+    background-color: rgba(0, 0, 0, 0.5);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 5px;
+  }
+
   .modal-text {
     flex: 1;
     display: flex;
